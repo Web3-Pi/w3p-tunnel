@@ -1,21 +1,24 @@
 {
-	"name": "w3p-tunnel",
-	"version": "1.0.0",
-	"description": "A set of tools to tunnel TCP traffic from a local port to a remote port.",
-	"homepage": "https://github.com/Web3-Pi/w3p-tunnel#readme",
-	"bugs": {
-		"url": "https://github.com/Web3-Pi/w3p-tunnel/issues"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/Web3-Pi/w3p-tunnel.git"
-	},
-	"license": "MIT",
-	"author": "",
-	"type": "commonjs",
-	"main": "index.js",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"workspaces": ["packages/server", "packages/client"]
+  "name": "w3p-tunnel",
+  "version": "1.0.0",
+  "description": "A set of tools to tunnel TCP traffic from a local port to a remote port.",
+  "homepage": "https://github.com/Web3-Pi/w3p-tunnel#readme",
+  "bugs": {
+    "url": "https://github.com/Web3-Pi/w3p-tunnel/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Web3-Pi/w3p-tunnel.git"
+  },
+  "license": "MIT",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "format": "biome check --fix"
+  },
+  "workspaces": ["packages/server", "packages/client"],
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4"
+  }
 }
