@@ -80,6 +80,12 @@ const server = net.createServer((clientSocket) => {
     console.log("Client tunnel disconnected");
     cleanupClientSocket();
   });
+
+  // force recreate the proxy server on error
+  proxyServer.on("error", (err) => {
+    console.log("Proxy server error:", err.message);
+    cleanupClientSocket();
+  });
 });
 
 server.listen(MAIN_PORT, () => {
