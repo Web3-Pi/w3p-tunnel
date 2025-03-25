@@ -13,12 +13,12 @@
   "license": "MIT",
   "author": "",
   "type": "module",
-  "main": "index.js",
   "scripts": {
     "format": "biome check --fix"
   },
-  "workspaces": ["packages/server", "packages/client"],
   "devDependencies": {
-    "@biomejs/biome": "1.9.4"
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^22.13.13",
+    "typescript": "^5.8.2"
   }
 }
