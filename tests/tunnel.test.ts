@@ -32,9 +32,9 @@ describe("tunnel", () => {
     });
   });
   afterEach(async () => {
-    stopSimpleServer(localService);
-    stopTunnelClient(client);
-    stopTunnelServer(server);
+    await stopSimpleServer(localService);
+    await stopTunnelClient(client);
+    await stopTunnelServer(server);
   });
 
   it("should forward a simple hello world server", async () => {

@@ -10,7 +10,7 @@ export async function startSimpleServer(port = 8080) {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end("Hello World\n");
   });
-  AbortSignal.timeout(1000).onabort = reject;
+  setTimeout(reject, 1000);
   server.listen(port, resolve);
   await promise;
   return server;
