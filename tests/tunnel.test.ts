@@ -88,13 +88,51 @@ describe("tunnel", () => {
       assert.equal(countHttpResponses(await response1), 1);
       assert.equal(countHttpResponses(await response2), 1);
     } finally {
-      const waitForSocketsEnd = Promise.all([
-        once(socket1, "close"),
-        once(socket2, "close"),
-      ]);
       socket1.destroy();
       socket2.destroy();
-      await waitForSocketsEnd;
+    }
+  });
+
+  it("handles authentication rejection", async () => {
+    server.connectionFilter = (authenticationCredentials) => {
+      return authenticationCredentials.id === "ACCEPT";
+    };
+    const client1 = await startTunnelClient({
+      authenticationCredentials: {
+        id: "REJECT",
+      },
+      autoStart: false,
+    });
+    const client2 = await startTunnelClient({
+      authenticationCredentials: {
+        id: "ACCEPT",
+      },
+      autoStart: false,
+    });
+    try {
+      client1.start({
+        tunnelServerHost: SERVER_HOST,
+        localServicePort: LOCAL_SERVICE_PORT,
+        tunnelServerPort: SERVER_PORT,
+      });
+      const [{ err }] = await once(
+        server.events,
+        "client-authentication-failed",
+      );
+      assert.equal(err.message, "Client rejected by connection filter");
+      client2.start({
+        tunnelServerHost: SERVER_HOST,
+        localServicePort: LOCAL_SERVICE_PORT,
+        tunnelServerPort: SERVER_PORT,
+      });
+      const [{ assignedPort }] = await once(
+        client2.events,
+        "authentication-acknowledged",
+      );
+      assert.equal(assignedPort > 0 && assignedPort < 65536, true);
+    } finally {
+      client1.stop();
+      client2.stop();
     }
   });
 });

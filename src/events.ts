@@ -5,6 +5,7 @@ export type ServerEvents = {
   "client-connected": { clientSocket: net.Socket };
   "client-disconnected": { clientSocket: net.Socket };
   "client-error": { clientSocket: net.Socket; err: Error };
+  "client-authentication-failed": { clientSocket: net.Socket; err: Error };
   "tunnel-created": {
     clientSocket: net.Socket;
     tunnelServer: net.Server;

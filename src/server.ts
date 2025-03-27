@@ -7,15 +7,19 @@ import { SocketContext } from "./shared/SocketContext.ts";
 export class TunnelServer {
   public tunnels = new Map<net.Socket, net.Server>();
   private server: net.Server;
-  public authenticatedClients = new Map<
-    net.Socket,
-    {
-      id: string;
-    }
-  >();
+  public authenticatedClients = new Map<net.Socket, Record<string, unknown>>();
   public events: TypeSafeEventEmitter<ServerEvents> = new EventEmitter();
 
-  constructor() {
+  connectionFilter: (
+    authenticationCredentials: Record<string, unknown>,
+  ) => boolean | Promise<boolean>;
+
+  constructor(
+    connectionFilter?: (
+      authenticationCredentials: Record<string, unknown>,
+    ) => boolean | Promise<boolean>,
+  ) {
+    this.connectionFilter = connectionFilter || (() => true);
     this.server = net.createServer((clientSocket) => {
       this.events.emit("client-connected", { clientSocket });
       clientSocket.setKeepAlive(true, 30000);

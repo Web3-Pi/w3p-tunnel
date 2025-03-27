@@ -73,6 +73,9 @@ export async function startTunnelServer(port = 9000) {
   tunnelServer.events.on("data-to-visitor", ({ data }) =>
     console.debug("Server event: data-to-visitor", data.length),
   );
+  tunnelServer.events.on("client-authentication-failed", ({ err }) =>
+    console.debug("Server event: client-authentication-failed", err),
+  );
 
   tunnelServer.start(port);
   await once(tunnelServer.events, "main-server-start", {
@@ -94,6 +97,7 @@ export async function startTunnelClient({
   authenticationCredentials = {
     id: "TEST_MACHINE_ID",
   } as Record<string, unknown>,
+  autoStart = true,
 } = {}) {
   const tunnelClient = new TunnelClient(authenticationCredentials);
 
@@ -137,12 +141,14 @@ export async function startTunnelClient({
     console.debug("Client event: tunnel-disconnected"),
   );
 
-  tunnelClient.start({
-    localServicePort: clientPort,
-    tunnelServerPort: serverPort,
-    tunnelServerHost: tunnelHost,
-  });
-  await once(tunnelClient.events, "authentication-acknowledged", {});
+  if (autoStart) {
+    tunnelClient.start({
+      localServicePort: clientPort,
+      tunnelServerPort: serverPort,
+      tunnelServerHost: tunnelHost,
+    });
+    await once(tunnelClient.events, "authentication-acknowledged", {});
+  }
   return tunnelClient;
 }
 
