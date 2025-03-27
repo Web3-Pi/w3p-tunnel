@@ -31,8 +31,8 @@ export async function startTunnelServer(port = 9000) {
   tunnelServer.events.on("client-disconnected", () =>
     console.debug("Server event: client-disconnected"),
   );
-  tunnelServer.events.on("client-error", () =>
-    console.debug("Server event: client-error"),
+  tunnelServer.events.on("client-error", ({ err }) =>
+    console.debug("Server event: client-error", err),
   );
   tunnelServer.events.on("tunnel-created", () =>
     console.debug("Server event: tunnel-created"),
@@ -40,11 +40,11 @@ export async function startTunnelServer(port = 9000) {
   tunnelServer.events.on("tunnel-destroyed", () =>
     console.debug("Server event: tunnel-destroyed"),
   );
-  tunnelServer.events.on("tunnel-error", () =>
-    console.debug("Server event: tunnel-error"),
+  tunnelServer.events.on("tunnel-error", ({ err }) =>
+    console.debug("Server event: tunnel-error", err),
   );
-  tunnelServer.events.on("main-server-error", () =>
-    console.debug("Server event: main-server-error"),
+  tunnelServer.events.on("main-server-error", ({ err }) =>
+    console.debug("Server event: main-server-error", err),
   );
   tunnelServer.events.on("main-server-start", (e) =>
     console.debug("Server event: main-server-start", { port: e.port }),
@@ -58,14 +58,14 @@ export async function startTunnelServer(port = 9000) {
   tunnelServer.events.on("visitor-disconnected", () =>
     console.debug("Server event: visitor-disconnected"),
   );
-  tunnelServer.events.on("visitor-error", () =>
-    console.debug("Server event: visitor-error"),
+  tunnelServer.events.on("visitor-error", ({ err }) =>
+    console.debug("Server event: visitor-error", err),
   );
-  tunnelServer.events.on("data-from-visitor", () =>
-    console.debug("Server event: data-from-visitor"),
+  tunnelServer.events.on("data-from-visitor", ({ data }) =>
+    console.debug("Server event: data-from-visitor", data.length),
   );
-  tunnelServer.events.on("data-to-visitor", () =>
-    console.debug("Server event: data-to-visitor"),
+  tunnelServer.events.on("data-to-visitor", ({ data }) =>
+    console.debug("Server event: data-to-visitor", data.length),
   );
 
   tunnelServer.start(port);
@@ -92,29 +92,26 @@ export async function startTunnelClient({
   tunnelClient.events.on("service-connected", () =>
     console.debug("Client event: service-connected"),
   );
-  tunnelClient.events.on("service-error", () =>
-    console.debug("Client event: service-error"),
+  tunnelClient.events.on("service-error", ({ err }) =>
+    console.debug("Client event: service-error", err),
   );
   tunnelClient.events.on("service-disconnected", () =>
     console.debug("Client event: service-disconnected"),
   );
-  tunnelClient.events.on("data-to-service", () =>
-    console.debug("Client event: data-to-service"),
+  tunnelClient.events.on("data-to-service", ({ data }) =>
+    console.debug("Client event: data-to-service", data.length),
   );
-  tunnelClient.events.on("data-from-service", () =>
-    console.debug("Client event: data-from-service"),
+  tunnelClient.events.on("data-from-service", ({ data }) =>
+    console.debug("Client event: data-from-service", data.length),
   );
   tunnelClient.events.on("tunnel-connected", () =>
     console.debug("Client event: tunnel-connected"),
   );
-  tunnelClient.events.on("tunnel-error", () =>
-    console.debug("Client event: tunnel-error"),
+  tunnelClient.events.on("tunnel-error", ({ err }) =>
+    console.debug("Client event: tunnel-error", err),
   );
   tunnelClient.events.on("tunnel-disconnected", () =>
     console.debug("Client event: tunnel-disconnected"),
-  );
-  tunnelClient.events.on("client-end", () =>
-    console.debug("Client event: client-end"),
   );
 
   tunnelClient.start({
@@ -122,7 +119,7 @@ export async function startTunnelClient({
     tunnelServerPort: serverPort,
     tunnelServerHost: tunnelHost,
   });
-  await once(tunnelClient.events, "service-connected", {
+  await once(tunnelClient.events, "tunnel-connected", {
     signal: AbortSignal.timeout(1000),
   });
   return tunnelClient;
@@ -130,7 +127,6 @@ export async function startTunnelClient({
 
 export async function stopTunnelClient(tunnelClient: TunnelClient) {
   tunnelClient.stop();
-  await once(tunnelClient.events, "client-end");
 }
 
 export function getPortOrThrow(server: net.Server) {

@@ -13,6 +13,7 @@ import type http from "node:http";
 import type { TunnelClient } from "../src/client.ts";
 import assert from "node:assert";
 import net from "node:net";
+import { once } from "node:events";
 
 const SERVER_PORT = 9000;
 const LOCAL_SERVICE_PORT = 8080;
@@ -87,8 +88,13 @@ describe("tunnel", () => {
       assert.equal(countHttpResponses(await response1), 1);
       assert.equal(countHttpResponses(await response2), 1);
     } finally {
+      const waitForSocketsEnd = Promise.all([
+        once(socket1, "close"),
+        once(socket2, "close"),
+      ]);
       socket1.destroy();
       socket2.destroy();
+      await waitForSocketsEnd;
     }
   });
 });

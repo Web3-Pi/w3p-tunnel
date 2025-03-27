@@ -42,16 +42,12 @@ export type ServerEvents = {
     clientSocket: net.Socket;
     tunnelServer: net.Server;
     visitorSocket: net.Socket;
-    proxyServer: net.Server;
-    proxySocket: net.Socket;
   };
   "data-to-visitor": {
     data: Buffer;
     clientSocket: net.Socket;
     tunnelServer: net.Server;
     visitorSocket: net.Socket;
-    proxyServer: net.Server;
-    proxySocket: net.Socket;
   };
 };
 
@@ -73,7 +69,6 @@ export type ClientEvents = {
   "tunnel-connected": { tunnelSocket: net.Socket };
   "tunnel-error": { tunnelSocket: net.Socket; err: Error };
   "tunnel-disconnected": { tunnelSocket: net.Socket };
-  "client-end": undefined;
 };
 
 export interface TypeSafeEventEmitter<Events extends Record<string, unknown>>
