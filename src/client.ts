@@ -9,7 +9,14 @@ export class TunnelClient {
   tunnelSocketContext: SocketContext | null = null;
   events: TypeSafeEventEmitter<ClientEvents> = new EventEmitter();
 
+  authenticationCredentials: Record<string, unknown>;
+
   #isDestroyed = false;
+
+  constructor(authenticationCredentials: Record<string, unknown>) {
+    this.authenticationCredentials = authenticationCredentials;
+  }
+
   start({
     localServicePort = 8081,
     tunnelServerPort = 9000,

@@ -17,6 +17,7 @@ export async function startSimpleServer(port = 8080) {
 }
 
 export async function stopSimpleServer(server: http.Server) {
+  console.log("Stopping simple server");
   server.close();
   await once(server, "close");
 }
@@ -34,8 +35,13 @@ export async function startTunnelServer(port = 9000) {
   tunnelServer.events.on("client-error", ({ err }) =>
     console.debug("Server event: client-error", err),
   );
-  tunnelServer.events.on("tunnel-created", () =>
-    console.debug("Server event: tunnel-created"),
+  tunnelServer.events.on(
+    "tunnel-created",
+    ({ clientAuthenticationCredentials }) =>
+      console.debug(
+        "Server event: tunnel-created",
+        clientAuthenticationCredentials,
+      ),
   );
   tunnelServer.events.on("tunnel-destroyed", () =>
     console.debug("Server event: tunnel-destroyed"),
@@ -76,6 +82,7 @@ export async function startTunnelServer(port = 9000) {
 }
 
 export async function stopTunnelServer(tunnelServer: TunnelServer) {
+  console.log("Stopping tunnel server");
   tunnelServer.stop();
   await once(tunnelServer.events, "main-server-end");
 }
@@ -84,8 +91,11 @@ export async function startTunnelClient({
   serverPort = 9000,
   clientPort = 8080,
   tunnelHost = "localhost",
+  authenticationCredentials = {
+    id: "TEST_MACHINE_ID",
+  } as Record<string, unknown>,
 } = {}) {
-  const tunnelClient = new TunnelClient();
+  const tunnelClient = new TunnelClient(authenticationCredentials);
 
   // Add debug listeners for all client events
   tunnelClient.events.on("error", () => console.debug("Client event: error"));
@@ -104,8 +114,21 @@ export async function startTunnelClient({
   tunnelClient.events.on("data-from-service", ({ data }) =>
     console.debug("Client event: data-from-service", data.length),
   );
-  tunnelClient.events.on("tunnel-connected", () =>
-    console.debug("Client event: tunnel-connected"),
+  tunnelClient.events.on("tunnel-connection-established", () =>
+    console.debug("Client event: tunnel-connection-established"),
+  );
+  tunnelClient.events.on(
+    "authentication-credentials-sent",
+    ({ authenticationCredentials }) =>
+      console.debug(
+        "Client event: authentication-credentials-sent",
+        authenticationCredentials,
+      ),
+  );
+  tunnelClient.events.on("authentication-acknowledged", ({ assignedPort }) =>
+    console.debug("Client event: authentication-acknowledged", {
+      port: assignedPort,
+    }),
   );
   tunnelClient.events.on("tunnel-error", ({ err }) =>
     console.debug("Client event: tunnel-error", err),
@@ -119,14 +142,14 @@ export async function startTunnelClient({
     tunnelServerPort: serverPort,
     tunnelServerHost: tunnelHost,
   });
-  await once(tunnelClient.events, "tunnel-connected", {
-    signal: AbortSignal.timeout(1000),
-  });
+  await once(tunnelClient.events, "authentication-acknowledged", {});
   return tunnelClient;
 }
 
 export async function stopTunnelClient(tunnelClient: TunnelClient) {
+  console.log("Stopping tunnel client");
   tunnelClient.stop();
+  await once(tunnelClient.events, "tunnel-disconnected");
 }
 
 export function getPortOrThrow(server: net.Server) {

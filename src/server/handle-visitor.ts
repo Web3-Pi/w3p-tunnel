@@ -26,7 +26,6 @@ export function handleVisitor(
     masterServer.events.emit("data-from-visitor", {
       data: chunk,
       clientSocket,
-      tunnelServer: tunnel,
       visitorSocket,
     });
     const encodedMessage = encodeMessage(streamId, "data", chunk);
@@ -36,7 +35,6 @@ export function handleVisitor(
   visitorSocket.on("end", () => {
     masterServer.events.emit("visitor-disconnected", {
       clientSocket,
-      tunnelServer: tunnel,
       visitorSocket,
     });
     const encodedMessage = encodeMessage(streamId, "close", Buffer.alloc(0));
@@ -49,7 +47,6 @@ export function handleVisitor(
   visitorSocket.on("error", (err) => {
     masterServer.events.emit("visitor-error", {
       clientSocket,
-      tunnelServer: tunnel,
       visitorSocket,
       err,
     });

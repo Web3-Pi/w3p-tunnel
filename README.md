@@ -15,6 +15,7 @@ The message format is a simple binary protocol, with the following structure:
 
 ### Message types
 
+- 0x00: Handshake
 - 0x01: Data
 - 0x02: Close
 - 0x03: Error

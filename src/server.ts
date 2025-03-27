@@ -1,12 +1,18 @@
 import net from "node:net";
 import type { ServerEvents, TypeSafeEventEmitter } from "./events.ts";
 import EventEmitter from "node:events";
-import { createTunnelForClient } from "./server/tunnel.ts";
+import { setupClientSocket } from "./server/setup-client-socket.ts";
 import { SocketContext } from "./shared/SocketContext.ts";
 
 export class TunnelServer {
   public tunnels = new Map<net.Socket, net.Server>();
   private server: net.Server;
+  public authenticatedClients = new Map<
+    net.Socket,
+    {
+      id: string;
+    }
+  >();
   public events: TypeSafeEventEmitter<ServerEvents> = new EventEmitter();
 
   constructor() {
@@ -16,7 +22,7 @@ export class TunnelServer {
       clientSocket.setTimeout(0);
       clientSocket.setNoDelay(true);
       const socketContext = new SocketContext(clientSocket);
-      createTunnelForClient(this, socketContext);
+      setupClientSocket(this, socketContext);
     });
   }
 
@@ -36,5 +42,9 @@ export class TunnelServer {
 
   stop() {
     this.server.close();
+    for (const [socket, tunnel] of this.tunnels) {
+      socket.destroy();
+      tunnel.close();
+    }
   }
 }

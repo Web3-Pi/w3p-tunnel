@@ -3,6 +3,7 @@ import { SocketContext } from "../shared/SocketContext.ts";
 import { decodeMessage } from "../shared/decode-message.ts";
 import type { TunnelClient } from "../client.ts";
 import { handleNewStreamId } from "./handle-new-stream-id.ts";
+import { authenticateWithServer } from "./authenticate-with-server.ts";
 
 export function createTunnelContext(
   masterClient: TunnelClient,
@@ -19,9 +20,10 @@ export function createTunnelContext(
       timeout: 0,
     },
     () => {
-      masterClient.events.emit("tunnel-connected", {
+      masterClient.events.emit("tunnel-connection-established", {
         tunnelSocket,
       });
+      authenticateWithServer(tunnelSocket, masterClient);
     },
   );
 
@@ -33,6 +35,22 @@ export function createTunnelContext(
       chunk,
       tunnelSocketContext,
     )) {
+      if (messageType === "handshake") {
+        const assignedPort = Number.parseInt(messageData.toString());
+        if (Number.isNaN(assignedPort)) {
+          masterClient.events.emit("error", {
+            err: new Error(`Got assigned a non-number port: ${assignedPort}`),
+          });
+          tunnelSocketContext.socket.destroy();
+          continue;
+        }
+        masterClient.events.emit("authentication-acknowledged", {
+          tunnelSocket,
+          assignedPort,
+        });
+        continue;
+      }
+
       // If this message comes from a new stream ID, create a new service socket
       if (!tunnelSocketContext.destinationSockets.has(streamId)) {
         await handleNewStreamId(

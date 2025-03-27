@@ -5,6 +5,8 @@ export function binaryMessageTypeToHumanReadable(
   messageType: number,
 ): HumanReadableMessageType {
   switch (messageType) {
+    case 0x00:
+      return "handshake";
     case 0x01:
       return "data";
     case 0x02:

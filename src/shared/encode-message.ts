@@ -1,9 +1,11 @@
-export type HumanReadableMessageType = "data" | "close" | "error";
+export type HumanReadableMessageType = "handshake" | "data" | "close" | "error";
 
 export function humanReadableMessageTypeToBinary(
   messageType: HumanReadableMessageType,
 ): number {
   switch (messageType) {
+    case "handshake":
+      return 0x00;
     case "data":
       return 0x01;
     case "close":

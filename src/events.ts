@@ -8,6 +8,7 @@ export type ServerEvents = {
   "tunnel-created": {
     clientSocket: net.Socket;
     tunnelServer: net.Server;
+    clientAuthenticationCredentials: Record<string, unknown>;
   };
   "tunnel-destroyed": {
     clientSocket: net.Socket;
@@ -28,25 +29,21 @@ export type ServerEvents = {
   };
   "visitor-disconnected": {
     clientSocket: net.Socket;
-    tunnelServer: net.Server;
     visitorSocket: net.Socket;
   };
   "visitor-error": {
     clientSocket: net.Socket;
-    tunnelServer: net.Server;
     visitorSocket: net.Socket;
     err: Error;
   };
   "data-from-visitor": {
     data: Buffer;
     clientSocket: net.Socket;
-    tunnelServer: net.Server;
     visitorSocket: net.Socket;
   };
   "data-to-visitor": {
     data: Buffer;
     clientSocket: net.Socket;
-    tunnelServer: net.Server;
     visitorSocket: net.Socket;
   };
 };
@@ -66,7 +63,15 @@ export type ClientEvents = {
     serviceSocket: net.Socket;
     tunnelSocket: net.Socket;
   };
-  "tunnel-connected": { tunnelSocket: net.Socket };
+  "tunnel-connection-established": { tunnelSocket: net.Socket };
+  "authentication-credentials-sent": {
+    tunnelSocket: net.Socket;
+    authenticationCredentials: Record<string, unknown>;
+  };
+  "authentication-acknowledged": {
+    tunnelSocket: net.Socket;
+    assignedPort: number;
+  };
   "tunnel-error": { tunnelSocket: net.Socket; err: Error };
   "tunnel-disconnected": { tunnelSocket: net.Socket };
 };
