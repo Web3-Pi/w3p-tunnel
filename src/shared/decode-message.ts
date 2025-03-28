@@ -18,6 +18,8 @@ export function binaryMessageTypeToHumanReadable(
   }
 }
 
+const REASONABLE_MAX_MESSAGE_LENGTH = 64 * 1024 * 1024;
+
 /**
  * Decode all messages in the socket receive buffer after the given chunk.
  * If any message is invalid, this function will throw an error.
@@ -34,6 +36,11 @@ export function* decodeMessage(chunk: Buffer, socketContext: SocketContext) {
     if (messageLength < 5) {
       throw new Error(
         `Declared message length ${messageLength} is too short for even just the header`,
+      );
+    }
+    if (messageLength > REASONABLE_MAX_MESSAGE_LENGTH) {
+      throw new Error(
+        `Declared message length ${messageLength} is too long, maximum is ${REASONABLE_MAX_MESSAGE_LENGTH}`,
       );
     }
     // messageLength (4 bytes) + the rest of the message
