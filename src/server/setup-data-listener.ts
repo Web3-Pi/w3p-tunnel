@@ -75,8 +75,9 @@ export function setupDataListener(
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      masterServer.events.emit("error", {
+      masterServer.events.emit("client-error", {
         err: error,
+        clientSocket,
       });
       clientSocketContext.receiveBuffer = Buffer.alloc(0);
       clientSocket.destroy(error);
