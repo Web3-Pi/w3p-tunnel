@@ -70,15 +70,19 @@ export function createTunnelContext(
         console.error("No service socket found for stream ID", streamId);
         continue;
       }
-      masterClient.events.emit("data-to-service", {
-        data: messageData,
-        serviceSocket,
-        tunnelSocket: tunnelSocketContext.socket,
-      });
       switch (messageType) {
         case "data": {
+          if (serviceSocket.writable) {
+            masterClient.events.emit("data-to-service", {
+              data: messageData,
+              serviceSocket,
+              tunnelSocket: tunnelSocketContext.socket,
+            });
+            serviceSocket.write(messageData);
+            break;
+          }
           // If the service socket is in the process of connecting, queue the data
-          if (!serviceSocket.connecting) {
+          if (!serviceSocket.destroyed) {
             let queue = tunnelSocketContext.pendingData.get(serviceSocket);
             if (!queue) {
               queue = [];
@@ -87,27 +91,23 @@ export function createTunnelContext(
             queue.push(messageData);
             break;
           }
-          if (!serviceSocket.writable) {
-            masterClient.events.emit("service-error", {
-              serviceSocket,
-              err: new Error("Service socket not writable"),
-            });
-            serviceSocket.destroy();
-            break;
-          }
-          serviceSocket.write(messageData);
+          // Socket is not writable and not connecting, it was probably closed
+          masterClient.events.emit("service-error", {
+            serviceSocket,
+            err: new Error("Tried to write to a closed socket"),
+          });
+          tunnelSocketContext.pendingData.delete(serviceSocket);
           break;
         }
         case "error":
-        case "close": {
+        case "close":
           serviceSocket.destroy();
           tunnelSocketContext.destinationSockets.delete(streamId);
+          tunnelSocketContext.pendingData.delete(serviceSocket);
           break;
-        }
-        default: {
+        default:
           console.error("Unknown message type", messageType);
           break;
-        }
       }
     }
   });
