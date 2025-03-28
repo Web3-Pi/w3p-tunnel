@@ -38,10 +38,10 @@ export function handleVisitor(
       visitorSocket,
     });
     const encodedMessage = encodeMessage(streamId, "close", Buffer.alloc(0));
-    clientSocket.write(encodedMessage);
-
+    if (clientSocket.writable) {
+      clientSocket.write(encodedMessage);
+    }
     clientSocketContext.destinationSockets.delete(streamId);
-    visitorSocket.destroy();
   });
 
   visitorSocket.on("error", (err) => {
@@ -50,5 +50,11 @@ export function handleVisitor(
       visitorSocket,
       err,
     });
+    const encodedMessage = encodeMessage(streamId, "error", Buffer.alloc(0));
+    if (clientSocket.writable) {
+      clientSocket.write(encodedMessage);
+    }
+    clientSocketContext.destinationSockets.delete(streamId);
+    visitorSocket.destroy();
   });
 }

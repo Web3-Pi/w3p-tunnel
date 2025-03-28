@@ -20,6 +20,9 @@ export async function handleNewStreamId(
     () => {
       // each streamId gets its own service socket
       tunnelSocketContext.destinationSockets.set(streamId, localSocket);
+      masterClient.events.emit("service-connected", {
+        serviceSocket: localSocket,
+      });
     },
   );
   localSocket.on("data", (chunk) => {
@@ -29,7 +32,9 @@ export async function handleNewStreamId(
       tunnelSocket: tunnelSocketContext.socket,
     });
     const message = encodeMessage(streamId, "data", chunk);
-    tunnelSocketContext.socket.write(message);
+    if (tunnelSocketContext.socket.writable) {
+      tunnelSocketContext.socket.write(message);
+    }
   });
 
   localSocket.on("close", () => {
@@ -37,6 +42,10 @@ export async function handleNewStreamId(
       serviceSocket: localSocket,
     });
     tunnelSocketContext.destinationSockets.delete(streamId);
+    if (tunnelSocketContext.socket.writable) {
+      const message = encodeMessage(streamId, "close", Buffer.alloc(0));
+      tunnelSocketContext.socket.write(message);
+    }
   });
 
   localSocket.on("error", (err) => {
@@ -45,7 +54,25 @@ export async function handleNewStreamId(
       err,
     });
     tunnelSocketContext.destinationSockets.delete(streamId);
+    if (tunnelSocketContext.socket.writable) {
+      const message = encodeMessage(streamId, "error", Buffer.alloc(0));
+      tunnelSocketContext.socket.write(message);
+    }
+    localSocket.destroy();
   });
-  await once(localSocket, "connect");
+  try {
+    await once(localSocket, "connect");
+  } catch (err) {
+    masterClient.events.emit("service-error", {
+      serviceSocket: localSocket,
+      err: err instanceof Error ? err : new Error(String(err)),
+    });
+    tunnelSocketContext.destinationSockets.delete(streamId);
+    if (tunnelSocketContext.socket.writable) {
+      const message = encodeMessage(streamId, "error", Buffer.alloc(0));
+      tunnelSocketContext.socket.write(message);
+    }
+    localSocket.destroy();
+  }
   return localSocket;
 }

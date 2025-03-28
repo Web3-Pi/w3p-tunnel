@@ -20,6 +20,11 @@ export function setupClientSocket(
       tunnel.close();
       masterServer.tunnels.delete(clientSocket);
     }
+    for (const [_, visitorSocket] of clientSocketContext.destinationSockets) {
+      visitorSocket.destroy();
+    }
+    clientSocketContext.destinationSockets.clear();
+    masterServer.authenticatedClients.delete(clientSocket);
     clientSocket.removeAllListeners();
     clientSocket.destroy();
   };

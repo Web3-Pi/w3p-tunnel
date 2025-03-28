@@ -46,21 +46,16 @@ export function setupDataListener(
           visitorSocket.write(messageData);
           break;
         }
-        case "close": {
+        // if the client decides to close the connection (error or not)
+        // just close the visitor socket
+        case "close":
+        case "error": {
           masterServer.events.emit("visitor-disconnected", {
             clientSocket,
             visitorSocket,
           });
           visitorSocket.destroy();
-          break;
-        }
-        case "error": {
-          masterServer.events.emit("visitor-error", {
-            clientSocket,
-            visitorSocket,
-            err: new Error("Visitor error"),
-          });
-          visitorSocket.destroy();
+          clientSocketContext.destinationSockets.delete(streamId);
           break;
         }
         default: {

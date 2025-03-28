@@ -84,6 +84,7 @@ export function createTunnelContext(
         case "error":
         case "close": {
           serviceSocket.destroy();
+          tunnelSocketContext.destinationSockets.delete(streamId);
           break;
         }
         default: {
