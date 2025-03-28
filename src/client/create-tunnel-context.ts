@@ -53,7 +53,7 @@ export function createTunnelContext(
 
       // If this message comes from a new stream ID, create a new service socket
       if (!tunnelSocketContext.destinationSockets.has(streamId)) {
-        await handleNewStreamId(
+        handleNewStreamId(
           masterClient,
           streamId,
           tunnelSocketContext,
@@ -73,10 +73,23 @@ export function createTunnelContext(
       });
       switch (messageType) {
         case "data": {
+          // If the service socket is in the process of connecting, queue the data
+          if (!serviceSocket.connecting) {
+            let queue = tunnelSocketContext.pendingData.get(serviceSocket);
+            if (!queue) {
+              queue = [];
+              tunnelSocketContext.pendingData.set(serviceSocket, queue);
+            }
+            queue.push(messageData);
+            break;
+          }
           if (!serviceSocket.writable) {
-            console.error("[ERROR] Service socket is not writable");
-            tunnelSocketContext.destinationSockets.delete(streamId);
-            continue;
+            masterClient.events.emit("service-error", {
+              serviceSocket,
+              err: new Error("Service socket not writable"),
+            });
+            serviceSocket.destroy();
+            break;
           }
           serviceSocket.write(messageData);
           break;
@@ -104,7 +117,8 @@ export function createTunnelContext(
       serviceSocket.destroy();
     }
     tunnelSocketContext.destinationSockets.clear();
-    // TODO: handle restarting the tunnel
+    tunnelSocketContext.pendingData.clear();
+    masterClient.reconnectToServer();
   });
 
   tunnelSocketContext.socket.on("error", (err) => {

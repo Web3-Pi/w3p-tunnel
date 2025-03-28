@@ -75,6 +75,7 @@ export type ClientEvents = {
   };
   "tunnel-error": { tunnelSocket: net.Socket; err: Error };
   "tunnel-disconnected": { tunnelSocket: net.Socket };
+  "tunnel-reconnect-queued": { timeout: number };
 };
 
 export interface TypeSafeEventEmitter<Events extends Record<string, unknown>>

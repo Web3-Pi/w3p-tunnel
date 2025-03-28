@@ -140,6 +140,9 @@ export async function startTunnelClient({
   tunnelClient.events.on("tunnel-disconnected", () =>
     console.debug("Client event: tunnel-disconnected"),
   );
+  tunnelClient.events.on("tunnel-reconnect-queued", ({ timeout }) =>
+    console.debug("Client event: tunnel-reconnect-queued", { timeout }),
+  );
 
   if (autoStart) {
     tunnelClient.start({

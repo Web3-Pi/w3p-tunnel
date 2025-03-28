@@ -10,11 +10,21 @@ export class TunnelClient {
   events: TypeSafeEventEmitter<ClientEvents> = new EventEmitter();
 
   authenticationCredentials: Record<string, unknown>;
-
   #isDestroyed = false;
+  #reconnectTimeout: NodeJS.Timeout | null = null;
 
   constructor(authenticationCredentials: Record<string, unknown>) {
     this.authenticationCredentials = authenticationCredentials;
+  }
+
+  reconnectToServer() {
+    const RECONNECT_TIMEOUT = 1000;
+    if (this.#reconnectTimeout) clearTimeout(this.#reconnectTimeout);
+    this.events.emit("tunnel-reconnect-queued", { timeout: RECONNECT_TIMEOUT });
+    this.#reconnectTimeout = setTimeout(() => {
+      if (this.#isDestroyed) return;
+      this.start();
+    }, RECONNECT_TIMEOUT);
   }
 
   start({
@@ -35,6 +45,7 @@ export class TunnelClient {
 
   stop() {
     if (!this.tunnelSocketContext) return;
+    if (this.#reconnectTimeout) clearTimeout(this.#reconnectTimeout);
     this.#isDestroyed = true;
     this.tunnelSocketContext.socket.end();
     for (const [_, serviceSocket] of this.tunnelSocketContext

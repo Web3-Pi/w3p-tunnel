@@ -13,9 +13,17 @@ export class SocketContext {
   // streamId -> destination socket (visitor on the server and service on the client)
   public destinationSockets: Map<number, net.Socket>;
 
+  /**
+   * Sockets to the local service that are in the process of connecting.
+   * If data arrives before the socket is even connected, it will be stored in `pendingData`.
+   * This is currently only being used by the client.
+   */
+  public pendingData: Map<net.Socket, Buffer[]>;
+
   constructor(socket: net.Socket) {
     this.socket = socket;
     this.receiveBuffer = Buffer.alloc(0);
     this.destinationSockets = new Map();
+    this.pendingData = new Map();
   }
 }
