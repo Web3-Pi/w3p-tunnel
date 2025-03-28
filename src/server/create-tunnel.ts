@@ -42,7 +42,7 @@ export function createTunnel(
       const message = encodeMessage(
         0,
         "handshake",
-        Buffer.from(assignedPort.toString()),
+        Buffer.from(JSON.stringify({ port: assignedPort })),
       );
       clientSocket.write(message);
     } catch (err) {

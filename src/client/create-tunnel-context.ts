@@ -36,18 +36,22 @@ export function createTunnelContext(
       tunnelSocketContext,
     )) {
       if (messageType === "handshake") {
-        const assignedPort = Number.parseInt(messageData.toString());
-        if (Number.isNaN(assignedPort)) {
-          masterClient.events.emit("error", {
-            err: new Error(`Got assigned a non-number port: ${assignedPort}`),
+        try {
+          const assignedPort = JSON.parse(messageData.toString()).port;
+          if (Number.isNaN(assignedPort)) {
+            throw new Error(`Got assigned a non-number port: ${assignedPort}`);
+          }
+          masterClient.events.emit("authentication-acknowledged", {
+            tunnelSocket,
+            assignedPort,
           });
-          tunnelSocketContext.socket.destroy();
-          continue;
+        } catch (err) {
+          masterClient.events.emit("tunnel-error", {
+            tunnelSocket,
+            err: err instanceof Error ? err : new Error(String(err)),
+          });
+          tunnelSocket.destroy();
         }
-        masterClient.events.emit("authentication-acknowledged", {
-          tunnelSocket,
-          assignedPort,
-        });
         continue;
       }
 
