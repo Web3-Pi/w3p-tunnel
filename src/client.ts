@@ -13,6 +13,10 @@ export class TunnelClient {
   #isDestroyed = false;
   #reconnectTimeout: NodeJS.Timeout | null = null;
 
+  #localServicePort = 8081;
+  #tunnelServerPort = 9000;
+  #tunnelServerHost = "localhost";
+
   constructor(authenticationCredentials: Record<string, unknown>) {
     this.authenticationCredentials = authenticationCredentials;
   }
@@ -23,7 +27,11 @@ export class TunnelClient {
     this.events.emit("tunnel-reconnect-queued", { timeout: RECONNECT_TIMEOUT });
     this.#reconnectTimeout = setTimeout(() => {
       if (this.#isDestroyed) return;
-      this.start();
+      this.start({
+        localServicePort: this.#localServicePort,
+        tunnelServerPort: this.#tunnelServerPort,
+        tunnelServerHost: this.#tunnelServerHost,
+      });
     }, RECONNECT_TIMEOUT);
   }
 
@@ -32,9 +40,21 @@ export class TunnelClient {
     tunnelServerPort = 9000,
     tunnelServerHost = "localhost",
   } = {}) {
+    this.#localServicePort = localServicePort;
+    this.#tunnelServerPort = tunnelServerPort;
+    this.#tunnelServerHost = tunnelServerHost;
     if (this.#isDestroyed) {
       throw new Error("Tunnel client is already destroyed, create a new one");
     }
+
+    // Prevent multiple concurrent contexts if start is called again before disconnect
+    if (
+      this.tunnelSocketContext &&
+      !this.tunnelSocketContext.socket.destroyed
+    ) {
+      throw new Error("Tunnel client is already connected");
+    }
+
     this.tunnelSocketContext = createTunnelContext(
       this,
       tunnelServerHost,
