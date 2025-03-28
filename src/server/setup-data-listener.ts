@@ -28,13 +28,19 @@ export function setupDataListener(
       const visitorSocket =
         clientSocketContext.destinationSockets.get(streamId);
       if (!visitorSocket) {
-        console.error("No visitor socket found for stream ID", streamId);
+        masterServer.events.emit("error", {
+          err: new Error(`No visitor socket found for stream ID ${streamId}`),
+        });
         continue;
       }
       switch (messageType) {
         case "data": {
           if (!visitorSocket.writable) {
-            console.error("Visitor socket is not writable", visitorSocket);
+            masterServer.events.emit("error", {
+              err: new Error(
+                `Received data from a client but the corresponding visitor socket (${streamId}) is not writable`,
+              ),
+            });
             clientSocketContext.destinationSockets.delete(streamId);
             continue;
           }
@@ -59,7 +65,9 @@ export function setupDataListener(
           break;
         }
         default: {
-          console.error("Unknown message type", messageType);
+          masterServer.events.emit("error", {
+            err: new Error(`Unknown message type ${messageType}`),
+          });
           break;
         }
       }

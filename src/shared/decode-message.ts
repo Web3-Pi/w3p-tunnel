@@ -53,8 +53,7 @@ export function* decodeMessage(chunk: Buffer, socketContext: SocketContext) {
 
       yield { streamId, messageType, messageData };
     } catch (err) {
-      // Invalid message, skip it
-      console.error("Invalid message", err);
+      // Invalid message, possible data corruption, it's best to drop the rest of the buffer and restart
     }
   }
 }

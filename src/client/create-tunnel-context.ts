@@ -29,7 +29,7 @@ export function createTunnelContext(
 
   const tunnelSocketContext = new SocketContext(tunnelSocket);
 
-  tunnelSocketContext.socket.on("data", async (chunk) => {
+  tunnelSocketContext.socket.on("data", (chunk) => {
     if (!tunnelSocketContext) throw new Error("Tunnel socket not created");
     for (const { streamId, messageType, messageData } of decodeMessage(
       chunk,
@@ -67,7 +67,9 @@ export function createTunnelContext(
       const serviceSocket =
         tunnelSocketContext.destinationSockets.get(streamId);
       if (!serviceSocket) {
-        console.error("No service socket found for stream ID", streamId);
+        masterClient.events.emit("error", {
+          err: new Error(`No service socket found for stream ID ${streamId}`),
+        });
         continue;
       }
       switch (messageType) {
@@ -106,7 +108,9 @@ export function createTunnelContext(
           tunnelSocketContext.pendingData.delete(serviceSocket);
           break;
         default:
-          console.error("Unknown message type", messageType);
+          masterClient.events.emit("error", {
+            err: new Error(`Unknown message type ${messageType}`),
+          });
           break;
       }
     }

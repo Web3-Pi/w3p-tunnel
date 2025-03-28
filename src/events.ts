@@ -2,6 +2,7 @@ import type net from "node:net";
 import type { EventEmitter } from "node:events";
 
 export type ServerEvents = {
+  error: { err: Error };
   "client-connected": { clientSocket: net.Socket };
   "client-disconnected": { clientSocket: net.Socket };
   "client-error": { clientSocket: net.Socket; err: Error };
