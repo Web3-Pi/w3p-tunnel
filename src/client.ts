@@ -22,6 +22,7 @@ export class TunnelClient {
   }
 
   reconnectToServer() {
+    if (this.#isDestroyed) return;
     const RECONNECT_TIMEOUT = 1000;
     if (this.#reconnectTimeout) clearTimeout(this.#reconnectTimeout);
     this.events.emit("tunnel-reconnect-queued", { timeout: RECONNECT_TIMEOUT });

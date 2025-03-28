@@ -20,6 +20,8 @@ export function binaryMessageTypeToHumanReadable(
 
 /**
  * Decode all messages in the socket receive buffer after the given chunk.
+ * If any message is invalid, this function will throw an error.
+ * It is recommended to wrap this function in a try/catch block.
  */
 export function* decodeMessage(chunk: Buffer, socketContext: SocketContext) {
   socketContext.receiveBuffer = Buffer.concat([
@@ -29,6 +31,11 @@ export function* decodeMessage(chunk: Buffer, socketContext: SocketContext) {
 
   while (socketContext.receiveBuffer.length >= 4) {
     const messageLength = socketContext.receiveBuffer.readUInt32BE(0);
+    if (messageLength < 5) {
+      throw new Error(
+        `Declared message length ${messageLength} is too short for even just the header`,
+      );
+    }
     // messageLength (4 bytes) + the rest of the message
     const totalExpectedLength = 4 + messageLength;
     if (socketContext.receiveBuffer.length < totalExpectedLength) {
@@ -40,20 +47,16 @@ export function* decodeMessage(chunk: Buffer, socketContext: SocketContext) {
       4,
       totalExpectedLength,
     );
+
+    // These operations can throw!
+    const streamId = message.readUInt32BE(0);
+    const messageType = binaryMessageTypeToHumanReadable(message.readUInt8(4));
+    const messageData = message.subarray(5);
+
     // remove the message from the receive buffer, the rest will be handled in the next iteration
     socketContext.receiveBuffer =
       socketContext.receiveBuffer.subarray(totalExpectedLength);
 
-    try {
-      const streamId = message.readUInt32BE(0);
-      const messageType = binaryMessageTypeToHumanReadable(
-        message.readUInt8(4),
-      );
-      const messageData = message.subarray(5);
-
-      yield { streamId, messageType, messageData };
-    } catch (err) {
-      // Invalid message, possible data corruption, it's best to drop the rest of the buffer and restart
-    }
+    yield { streamId, messageType, messageData };
   }
 }
