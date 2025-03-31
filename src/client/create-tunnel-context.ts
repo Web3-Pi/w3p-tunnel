@@ -3,28 +3,38 @@ import { SocketContext } from "../shared/SocketContext.ts";
 import type { TunnelClient } from "../client.ts";
 import { authenticateWithServer } from "./authenticate-with-server.ts";
 import { setupDataListener } from "./setup-data-listener.ts";
+import nodeTls from "node:tls";
 
 export function createTunnelContext(
   masterClient: TunnelClient,
   host: string,
   port: number,
   localServicePort: number,
+  tls: false | nodeTls.ConnectionOptions,
 ) {
-  const tunnelSocket = net.createConnection(
-    {
-      host,
-      port,
-      noDelay: true,
-      keepAlive: true,
-      timeout: 0,
-    },
-    () => {
-      masterClient.events.emit("tunnel-connection-established", {
-        tunnelSocket,
-      });
-      authenticateWithServer(tunnelSocket, masterClient);
-    },
-  );
+  let tunnelSocket: net.Socket;
+
+  const connectionListener = () => {
+    masterClient.events.emit("tunnel-connection-established", {
+      tunnelSocket,
+    });
+    authenticateWithServer(tunnelSocket, masterClient);
+  };
+
+  if (tls) {
+    tunnelSocket = nodeTls.connect(port, host, tls, connectionListener);
+  } else {
+    tunnelSocket = net.createConnection(
+      {
+        host,
+        port,
+      },
+      connectionListener,
+    );
+  }
+  tunnelSocket.setKeepAlive(true, 30000);
+  tunnelSocket.setTimeout(0);
+  tunnelSocket.setNoDelay(true);
 
   const tunnelSocketContext = new SocketContext(tunnelSocket);
 

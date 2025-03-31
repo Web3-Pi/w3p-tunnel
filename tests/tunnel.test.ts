@@ -102,29 +102,27 @@ describe("tunnel", () => {
         id: "REJECT",
       },
       autoStart: false,
+      clientPort: LOCAL_SERVICE_PORT,
+      serverPort: SERVER_PORT,
+      tunnelHost: SERVER_HOST,
     });
     const client2 = await startTunnelClient({
       authenticationCredentials: {
         id: "ACCEPT",
       },
       autoStart: false,
+      clientPort: LOCAL_SERVICE_PORT,
+      serverPort: SERVER_PORT,
+      tunnelHost: SERVER_HOST,
     });
     try {
-      client1.start({
-        tunnelServerHost: SERVER_HOST,
-        localServicePort: LOCAL_SERVICE_PORT,
-        tunnelServerPort: SERVER_PORT,
-      });
+      client1.start();
       const [{ err }] = await once(
         server.events,
         "client-authentication-failed",
       );
       assert.equal(err.message, "Client rejected by connection filter");
-      client2.start({
-        tunnelServerHost: SERVER_HOST,
-        localServicePort: LOCAL_SERVICE_PORT,
-        tunnelServerPort: SERVER_PORT,
-      });
+      client2.start();
       const [{ assignedPort }] = await once(
         client2.events,
         "authentication-acknowledged",

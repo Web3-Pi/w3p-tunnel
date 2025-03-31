@@ -3,6 +3,7 @@ import type { ClientEvents, TypeSafeEventEmitter } from "./events.ts";
 import EventEmitter from "node:events";
 import type { SocketContext } from "./shared/SocketContext.ts";
 import { createTunnelContext } from "./client/create-tunnel-context.ts";
+import type nodeTls from "node:tls";
 
 export class TunnelClient {
   serviceSocket: net.Socket | null = null;
@@ -16,9 +17,26 @@ export class TunnelClient {
   #localServicePort = 8081;
   #tunnelServerPort = 9000;
   #tunnelServerHost = "localhost";
+  #tls: false | nodeTls.ConnectionOptions = false;
 
-  constructor(authenticationCredentials: Record<string, unknown>) {
+  constructor({
+    localServicePort = 8081,
+    tunnelServerPort = 9000,
+    tunnelServerHost = "localhost",
+    authenticationCredentials,
+    tls,
+  }: {
+    localServicePort: number;
+    tunnelServerPort: number;
+    tunnelServerHost: string;
+    authenticationCredentials: Record<string, unknown>;
+    tls?: false | nodeTls.ConnectionOptions;
+  }) {
+    this.#localServicePort = localServicePort;
+    this.#tunnelServerPort = tunnelServerPort;
+    this.#tunnelServerHost = tunnelServerHost;
     this.authenticationCredentials = authenticationCredentials;
+    this.#tls = tls || false;
   }
 
   reconnectToServer() {
@@ -28,22 +46,11 @@ export class TunnelClient {
     this.events.emit("tunnel-reconnect-queued", { timeout: RECONNECT_TIMEOUT });
     this.#reconnectTimeout = setTimeout(() => {
       if (this.#isDestroyed) return;
-      this.start({
-        localServicePort: this.#localServicePort,
-        tunnelServerPort: this.#tunnelServerPort,
-        tunnelServerHost: this.#tunnelServerHost,
-      });
+      this.start();
     }, RECONNECT_TIMEOUT);
   }
 
-  start({
-    localServicePort = 8081,
-    tunnelServerPort = 9000,
-    tunnelServerHost = "localhost",
-  } = {}) {
-    this.#localServicePort = localServicePort;
-    this.#tunnelServerPort = tunnelServerPort;
-    this.#tunnelServerHost = tunnelServerHost;
+  start() {
     if (this.#isDestroyed) {
       throw new Error("Tunnel client is already destroyed, create a new one");
     }
@@ -58,9 +65,10 @@ export class TunnelClient {
 
     this.tunnelSocketContext = createTunnelContext(
       this,
-      tunnelServerHost,
-      tunnelServerPort,
-      localServicePort,
+      this.#tunnelServerHost,
+      this.#tunnelServerPort,
+      this.#localServicePort,
+      this.#tls,
     );
   }
 

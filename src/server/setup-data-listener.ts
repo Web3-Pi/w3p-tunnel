@@ -28,14 +28,16 @@ export function setupDataListener(
         }
         const visitorSocket =
           clientSocketContext.destinationSockets.get(streamId);
-        if (!visitorSocket) {
-          masterServer.events.emit("error", {
-            err: new Error(`No visitor socket found for stream ID ${streamId}`),
-          });
-          continue;
-        }
         switch (messageType) {
           case "data": {
+            if (!visitorSocket) {
+              masterServer.events.emit("error", {
+                err: new Error(
+                  `No visitor socket found for stream ID ${streamId} (message type: ${messageType})`,
+                ),
+              });
+              break;
+            }
             if (!visitorSocket.writable) {
               masterServer.events.emit("error", {
                 err: new Error(
@@ -43,7 +45,8 @@ export function setupDataListener(
                 ),
               });
               clientSocketContext.destinationSockets.delete(streamId);
-              continue;
+              visitorSocket.destroy();
+              break;
             }
             masterServer.events.emit("data-to-visitor", {
               clientSocket,
@@ -54,13 +57,12 @@ export function setupDataListener(
             break;
           }
           // if the client decides to close the connection (error or not)
-          // just close the visitor socket
+          // just close the visitor socket (if it's still open)
           case "close":
           case "error": {
-            masterServer.events.emit("visitor-disconnected", {
-              clientSocket,
-              visitorSocket,
-            });
+            if (!visitorSocket) {
+              break;
+            }
             visitorSocket.destroy();
             clientSocketContext.destinationSockets.delete(streamId);
             break;

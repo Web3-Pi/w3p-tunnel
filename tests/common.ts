@@ -3,6 +3,7 @@ import { TunnelServer } from "../src/server.ts";
 import { once } from "node:events";
 import { TunnelClient } from "../src/client.ts";
 import type net from "node:net";
+import type nodeTls from "node:tls";
 
 export async function startSimpleServer(port = 8080) {
   const { resolve, reject, promise } = Promise.withResolvers<void>();
@@ -22,8 +23,11 @@ export async function stopSimpleServer(server: http.Server) {
   await once(server, "close");
 }
 
-export async function startTunnelServer(port = 9000) {
-  const tunnelServer = new TunnelServer();
+export async function startTunnelServer(
+  port = 9000,
+  tls: false | nodeTls.TlsOptions = false,
+) {
+  const tunnelServer = new TunnelServer({ tls });
 
   // Add debug listeners for all server events
   tunnelServer.events.on("client-connected", () =>
@@ -53,7 +57,10 @@ export async function startTunnelServer(port = 9000) {
     console.debug("Server event: main-server-error", err),
   );
   tunnelServer.events.on("main-server-start", (e) =>
-    console.debug("Server event: main-server-start", { port: e.port }),
+    console.debug("Server event: main-server-start", {
+      port: e.port,
+      secure: e.secure,
+    }),
   );
   tunnelServer.events.on("main-server-end", () =>
     console.debug("Server event: main-server-end"),
@@ -98,8 +105,15 @@ export async function startTunnelClient({
     id: "TEST_MACHINE_ID",
   } as Record<string, unknown>,
   autoStart = true,
+  tls = false as false | nodeTls.ConnectionOptions,
 } = {}) {
-  const tunnelClient = new TunnelClient(authenticationCredentials);
+  const tunnelClient = new TunnelClient({
+    localServicePort: clientPort,
+    tunnelServerPort: serverPort,
+    tunnelServerHost: tunnelHost,
+    authenticationCredentials,
+    tls,
+  });
 
   // Add debug listeners for all client events
   tunnelClient.events.on("error", () => console.debug("Client event: error"));
@@ -145,11 +159,7 @@ export async function startTunnelClient({
   );
 
   if (autoStart) {
-    tunnelClient.start({
-      localServicePort: clientPort,
-      tunnelServerPort: serverPort,
-      tunnelServerHost: tunnelHost,
-    });
+    tunnelClient.start();
     await once(tunnelClient.events, "authentication-acknowledged", {});
   }
   return tunnelClient;

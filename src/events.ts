@@ -22,7 +22,7 @@ export type ServerEvents = {
     err: Error;
   };
   "main-server-error": { err: Error };
-  "main-server-start": { port: number };
+  "main-server-start": { port: number; secure: boolean };
   "main-server-end": undefined;
   "visitor-connected": {
     clientSocket: net.Socket;

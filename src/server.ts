@@ -3,6 +3,7 @@ import type { ServerEvents, TypeSafeEventEmitter } from "./events.ts";
 import EventEmitter from "node:events";
 import { setupClientSocket } from "./server/setup-client-socket.ts";
 import { SocketContext } from "./shared/SocketContext.ts";
+import nodeTls from "node:tls";
 
 export class TunnelServer {
   public tunnels = new Map<net.Socket, net.Server>();
@@ -10,29 +11,44 @@ export class TunnelServer {
   public authenticatedClients = new Map<net.Socket, Record<string, unknown>>();
   public events: TypeSafeEventEmitter<ServerEvents> = new EventEmitter();
 
+  tlsEnabled = false;
+
   connectionFilter: (
     authenticationCredentials: Record<string, unknown>,
   ) => boolean | Promise<boolean>;
 
-  constructor(
+  constructor({
+    connectionFilter,
+    tls,
+  }: {
     connectionFilter?: (
       authenticationCredentials: Record<string, unknown>,
-    ) => boolean | Promise<boolean>,
-  ) {
+    ) => boolean | Promise<boolean>;
+    tls?: nodeTls.TlsOptions | false;
+  } = {}) {
     this.connectionFilter = connectionFilter || (() => true);
-    this.server = net.createServer((clientSocket) => {
+    const tlsEnabled = !!tls;
+    this.tlsEnabled = tlsEnabled;
+
+    const connectionCallback = (clientSocket: net.Socket) => {
       this.events.emit("client-connected", { clientSocket });
       clientSocket.setKeepAlive(true, 30000);
       clientSocket.setTimeout(0);
       clientSocket.setNoDelay(true);
       const socketContext = new SocketContext(clientSocket);
       setupClientSocket(this, socketContext);
-    });
+    };
+
+    if (tlsEnabled) {
+      this.server = nodeTls.createServer(tls, connectionCallback);
+    } else {
+      this.server = net.createServer(connectionCallback);
+    }
   }
 
   start(port = 9000) {
     this.server.listen(port, () => {
-      this.events.emit("main-server-start", { port });
+      this.events.emit("main-server-start", { port, secure: this.tlsEnabled });
     });
 
     this.server.on("error", (err) => {
