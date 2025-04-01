@@ -3,6 +3,8 @@ import type { SocketContext } from "../shared/SocketContext.ts";
 import net from "node:net";
 import { handleVisitor } from "./handle-visitor.ts";
 import { encodeMessage } from "../shared/encode-message.ts";
+import nodeTls from "node:tls";
+
 /**
  * Create a tunnel that will forward traffic to and from the client socket. This should be called AFTER the client has authenticated.
  */
@@ -13,14 +15,26 @@ export function createTunnel(
 ) {
   const clientSocket = clientSocketContext.socket;
   // Create a proxy server that will forward connections to the client
-  const tunnel = net.createServer((visitorSocket) => {
+  let tunnel: net.Server;
+
+  const visitorSocketListener = (visitorSocket: net.Socket) => {
     masterServer.events.emit("visitor-connected", {
       clientSocket,
       tunnelServer: tunnel,
       visitorSocket,
     });
     handleVisitor(masterServer, visitorSocket, clientSocketContext, tunnel);
-  });
+  };
+
+  // biome-ignore lint/complexity/useOptionalChain: false positive? tls can be `false`
+  if (masterServer.tls && masterServer.tls.tunnelServer) {
+    tunnel = nodeTls.createServer(
+      masterServer.tls.tunnelServer,
+      visitorSocketListener,
+    );
+  } else {
+    tunnel = net.createServer(visitorSocketListener);
+  }
 
   // Start listening on a random port
   tunnel.listen(0, () => {
@@ -28,6 +42,7 @@ export function createTunnel(
       clientSocket,
       tunnelServer: tunnel,
       clientAuthenticationCredentials,
+      secure: tunnel instanceof nodeTls.Server,
     });
     masterServer.tunnels.set(clientSocket, tunnel);
     // send authentication ack to client

@@ -11,6 +11,7 @@ export type ServerEvents = {
     clientSocket: net.Socket;
     tunnelServer: net.Server;
     clientAuthenticationCredentials: Record<string, unknown>;
+    secure: boolean;
   };
   "tunnel-destroyed": {
     clientSocket: net.Socket;

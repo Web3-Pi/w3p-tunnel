@@ -25,7 +25,10 @@ export async function stopSimpleServer(server: http.Server) {
 
 export async function startTunnelServer(
   port = 9000,
-  tls: false | nodeTls.TlsOptions = false,
+  tls?: {
+    mainServer?: false | nodeTls.TlsOptions;
+    tunnelServer?: false | nodeTls.TlsOptions;
+  },
 ) {
   const tunnelServer = new TunnelServer({ tls });
 
@@ -41,11 +44,11 @@ export async function startTunnelServer(
   );
   tunnelServer.events.on(
     "tunnel-created",
-    ({ clientAuthenticationCredentials }) =>
-      console.debug(
-        "Server event: tunnel-created",
+    ({ clientAuthenticationCredentials, secure }) =>
+      console.debug("Server event: tunnel-created", {
         clientAuthenticationCredentials,
-      ),
+        secure,
+      }),
   );
   tunnelServer.events.on("tunnel-destroyed", () =>
     console.debug("Server event: tunnel-destroyed"),

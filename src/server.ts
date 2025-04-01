@@ -11,11 +11,20 @@ export class TunnelServer {
   public authenticatedClients = new Map<net.Socket, Record<string, unknown>>();
   public events: TypeSafeEventEmitter<ServerEvents> = new EventEmitter();
 
-  tlsEnabled = false;
+  tls:
+    | {
+        mainServer?: nodeTls.TlsOptions | false;
+        tunnelServer?: nodeTls.TlsOptions | false;
+      }
+    | false;
 
   connectionFilter: (
     authenticationCredentials: Record<string, unknown>,
   ) => boolean | Promise<boolean>;
+
+  get tlsEnabled() {
+    return !!this.tls && !!this.tls.mainServer;
+  }
 
   constructor({
     connectionFilter,
@@ -24,11 +33,15 @@ export class TunnelServer {
     connectionFilter?: (
       authenticationCredentials: Record<string, unknown>,
     ) => boolean | Promise<boolean>;
-    tls?: nodeTls.TlsOptions | false;
+    tls?:
+      | {
+          mainServer?: nodeTls.TlsOptions | false;
+          tunnelServer?: nodeTls.TlsOptions | false;
+        }
+      | false;
   } = {}) {
     this.connectionFilter = connectionFilter || (() => true);
-    const tlsEnabled = !!tls;
-    this.tlsEnabled = tlsEnabled;
+    this.tls = tls || false;
 
     const connectionCallback = (clientSocket: net.Socket) => {
       this.events.emit("client-connected", { clientSocket });
@@ -39,8 +52,9 @@ export class TunnelServer {
       setupClientSocket(this, socketContext);
     };
 
-    if (tlsEnabled) {
-      this.server = nodeTls.createServer(tls, connectionCallback);
+    // biome-ignore lint/complexity/useOptionalChain: false positive? tls can be `false`
+    if (tls && tls.mainServer) {
+      this.server = nodeTls.createServer(tls.mainServer, connectionCallback);
     } else {
       this.server = net.createServer(connectionCallback);
     }
