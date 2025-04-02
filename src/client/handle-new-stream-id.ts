@@ -1,7 +1,7 @@
 import net from "node:net";
 import { encodeMessage } from "../shared/encode-message.ts";
-import type { SocketContext } from "../shared/SocketContext.ts";
 import type { TunnelClient } from "../client.ts";
+import type { ClientConnection } from "./ClientConnection.ts";
 
 /**
  * When a new stream ID is received from the tunnel (e.g. when a new visitor connects),
@@ -11,7 +11,7 @@ import type { TunnelClient } from "../client.ts";
 export function handleNewStreamId(
   masterClient: TunnelClient,
   streamId: number,
-  tunnelSocketContext: SocketContext,
+  clientConnection: ClientConnection,
   localServicePort: number,
 ) {
   const localSocket = net.createConnection({
@@ -22,14 +22,14 @@ export function handleNewStreamId(
     masterClient.events.emit("data-from-service", {
       data: chunk,
       serviceSocket: localSocket,
-      tunnelSocket: tunnelSocketContext.socket,
+      tunnelSocket: clientConnection.socket,
     });
     const message = encodeMessage(streamId, "data", chunk);
-    if (tunnelSocketContext.socket.writable) {
-      tunnelSocketContext.socket.write(message);
+    if (clientConnection.socket.writable) {
+      clientConnection.socket.write(message);
     }
   });
-  tunnelSocketContext.destinationSockets.set(streamId, localSocket);
+  clientConnection.destinationSockets.set(streamId, localSocket);
 
   localSocket.on("connect", () => {
     masterClient.events.emit("service-connected", {
@@ -37,24 +37,24 @@ export function handleNewStreamId(
     });
 
     // If any messages arrived during connection, send them now
-    const queue = tunnelSocketContext.pendingData.get(localSocket);
+    const queue = clientConnection.pendingData.get(localSocket);
     if (queue && localSocket.writable) {
       for (const data of queue) {
         localSocket.write(data);
       }
     }
-    tunnelSocketContext.pendingData.delete(localSocket);
+    clientConnection.pendingData.delete(localSocket);
   });
 
   localSocket.on("close", () => {
     masterClient.events.emit("service-disconnected", {
       serviceSocket: localSocket,
     });
-    tunnelSocketContext.destinationSockets.delete(streamId);
-    tunnelSocketContext.pendingData.delete(localSocket);
-    if (tunnelSocketContext.socket.writable) {
+    clientConnection.destinationSockets.delete(streamId);
+    clientConnection.pendingData.delete(localSocket);
+    if (clientConnection.socket.writable) {
       const message = encodeMessage(streamId, "close", Buffer.alloc(0));
-      tunnelSocketContext.socket.write(message);
+      clientConnection.socket.write(message);
     }
   });
 
@@ -63,12 +63,12 @@ export function handleNewStreamId(
       serviceSocket: localSocket,
       err,
     });
-    tunnelSocketContext.destinationSockets.delete(streamId);
-    tunnelSocketContext.pendingData.delete(localSocket);
+    clientConnection.destinationSockets.delete(streamId);
+    clientConnection.pendingData.delete(localSocket);
     localSocket.destroy();
-    if (tunnelSocketContext.socket.writable) {
+    if (clientConnection.socket.writable) {
       const message = encodeMessage(streamId, "error", Buffer.alloc(0));
-      tunnelSocketContext.socket.write(message);
+      clientConnection.socket.write(message);
     }
   });
   return localSocket;

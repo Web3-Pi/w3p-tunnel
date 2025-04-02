@@ -21,49 +21,81 @@ export function binaryMessageTypeToHumanReadable(
 const REASONABLE_MAX_MESSAGE_LENGTH = 64 * 1024 * 1024;
 
 /**
- * Decode all messages in the socket receive buffer after the given chunk.
- * If any message is invalid, this function will throw an error.
- * It is recommended to wrap this function in a try/catch block.
+ * Decodes length-prefixed message bodies from the socket receive buffer.
+ * Assumes magic bytes have already been validated and removed by the caller.
+ * Yields { messageBodyLength, messageBody } for each complete message found.
+ * Throws DecodeError if invalid framing data (bad length) is detected.
  */
-export function* decodeMessage(chunk: Buffer, socketContext: SocketContext) {
-  socketContext.receiveBuffer = Buffer.concat([
-    socketContext.receiveBuffer,
-    chunk,
-  ]);
-
+export function* decodeMessage(socketContext: SocketContext) {
   while (socketContext.receiveBuffer.length >= 4) {
-    const messageLength = socketContext.receiveBuffer.readUInt32BE(0);
-    if (messageLength < 5) {
+    const messageBodyLength = socketContext.receiveBuffer.readUInt32BE(0);
+
+    if (messageBodyLength > REASONABLE_MAX_MESSAGE_LENGTH) {
       throw new Error(
-        `Declared message length ${messageLength} is too short for even just the header`,
+        `Declared message length ${messageBodyLength} is too long, maximum is ${REASONABLE_MAX_MESSAGE_LENGTH}`,
       );
     }
-    if (messageLength > REASONABLE_MAX_MESSAGE_LENGTH) {
-      throw new Error(
-        `Declared message length ${messageLength} is too long, maximum is ${REASONABLE_MAX_MESSAGE_LENGTH}`,
-      );
-    }
-    // messageLength (4 bytes) + the rest of the message
-    const totalExpectedLength = 4 + messageLength;
+    const totalExpectedLength = 4 + messageBodyLength;
     if (socketContext.receiveBuffer.length < totalExpectedLength) {
-      // Not enough data yet
-      break;
+      break; // Not enough data yet
     }
-    // everything after the message length header
-    const message = socketContext.receiveBuffer.subarray(
+
+    const messageBody = socketContext.receiveBuffer.subarray(
       4,
       totalExpectedLength,
     );
-
-    // These operations can throw!
-    const streamId = message.readUInt32BE(0);
-    const messageType = binaryMessageTypeToHumanReadable(message.readUInt8(4));
-    const messageData = message.subarray(5);
-
-    // remove the message from the receive buffer, the rest will be handled in the next iteration
-    socketContext.receiveBuffer =
+    const remainingBuffer =
       socketContext.receiveBuffer.subarray(totalExpectedLength);
 
-    yield { streamId, messageType, messageData };
+    // Update buffer BEFORE yield
+    socketContext.receiveBuffer = remainingBuffer;
+
+    yield { messageBodyLength, messageBody };
+  }
+}
+
+/**
+ * Parses the message body yielded by decodeMessage.
+ * Throws and Error on parsing failures.
+ */
+export function parseMessageBody(
+  messageBody: Buffer,
+  expectingHandshake: boolean,
+):
+  | {
+      streamId: number;
+      messageType: Exclude<HumanReadableMessageType, "handshake">;
+      messageData: Buffer;
+    }
+  | { messageType: "handshake"; data: Record<string, unknown> } {
+  if (expectingHandshake) {
+    // Parse as Handshake JSON payload
+    try {
+      const jsonData = JSON.parse(messageBody.toString("utf8"));
+      if (typeof jsonData !== "object" || jsonData === null) {
+        throw new Error("Handshake message must be an object");
+      }
+      return { messageType: "handshake", data: jsonData };
+    } catch (err) {
+      throw new Error(`Handshake message is not valid JSON: ${err}`);
+    }
+  }
+  // Parse as Tunnel Message (StreamID + Type + Data)
+  if (messageBody.length < 5) {
+    throw new Error(
+      `Declared message length ${messageBody.length} is too short for even just the header`,
+    );
+  }
+  try {
+    const streamId = messageBody.readUInt32BE(0);
+    const messageTypeByte = messageBody.readUInt8(4);
+    const messageType = binaryMessageTypeToHumanReadable(messageTypeByte);
+    if (messageType === "handshake") {
+      throw new Error("Didn't expect a handshake message but got one");
+    }
+    const messageData = messageBody.subarray(5);
+    return { streamId, messageType, messageData };
+  } catch (err) {
+    throw new Error("Message is not valid");
   }
 }

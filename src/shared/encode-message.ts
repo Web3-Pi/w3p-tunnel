@@ -1,3 +1,5 @@
+import { MAGIC_BYTES } from "./constants.ts";
+
 export type HumanReadableMessageType = "handshake" | "data" | "close" | "error";
 
 export function humanReadableMessageTypeToBinary(
@@ -18,20 +20,48 @@ export function humanReadableMessageTypeToBinary(
 }
 
 /**
+ * Encodes a handshake message as a length-prefixed JSON string.
+ * Prepends the message with MAGIC_BYTES to confirm the protocol.
+ * This should be the first message sent by both the client and server.
+ */
+export function encodeHandshakeMessage(jsonData: Record<string, unknown>) {
+  if (typeof jsonData !== "object" || jsonData === null) {
+    throw new Error("Handshake message must be an object");
+  }
+  const jsonString = JSON.stringify(jsonData);
+  const dataBuffer = Buffer.from(jsonString, "utf-8");
+  const lengthPrefix = Buffer.alloc(4);
+  lengthPrefix.writeUInt32BE(dataBuffer.length, 0);
+
+  // handshake message is prefixed with MAGIC_BYTES to confirm the protocol
+  return Buffer.concat([MAGIC_BYTES, lengthPrefix, dataBuffer]);
+}
+
+/**
  * Prepend the message with the stream ID, message type and message length.
+ * Does NOT include magic bytes.
  */
 export function encodeMessage(
   streamId: number,
   messageType: HumanReadableMessageType,
   messageData: Buffer,
 ) {
-  // streamId (4 bytes) + messageType (1 byte) + messageData (variable length)
-  const messageLength = messageData.length + 5;
-  // messageLength (4 bytes) + the rest of the message
-  const buffer = Buffer.alloc(4 + messageLength);
-  buffer.writeUInt32BE(messageLength, 0);
-  buffer.writeUInt32BE(streamId, 4);
-  buffer.writeUInt8(humanReadableMessageTypeToBinary(messageType), 8);
-  messageData.copy(buffer, 9);
-  return buffer;
+  const messageBodyLength = messageData.length + 5; // header + data
+  const lengthPrefix = Buffer.alloc(4);
+  const streamIdBuffer = Buffer.alloc(4);
+  const messageTypeBuffer = Buffer.alloc(1);
+
+  lengthPrefix.writeUInt32BE(messageBodyLength, 0);
+  streamIdBuffer.writeUInt32BE(streamId, 0);
+  messageTypeBuffer.writeUInt8(
+    humanReadableMessageTypeToBinary(messageType),
+    0,
+  );
+
+  return Buffer.concat([
+    lengthPrefix,
+    streamIdBuffer,
+    messageTypeBuffer,
+    messageData,
+  ]);
 }

@@ -1,9 +1,9 @@
 import net from "node:net";
-import { SocketContext } from "../shared/SocketContext.ts";
 import type { TunnelClient } from "../client.ts";
 import { authenticateWithServer } from "./authenticate-with-server.ts";
 import { setupDataListener } from "./setup-data-listener.ts";
 import nodeTls from "node:tls";
+import { ClientConnection } from "./ClientConnection.ts";
 
 export function createTunnelContext(
   masterClient: TunnelClient,
@@ -18,6 +18,7 @@ export function createTunnelContext(
     masterClient.events.emit("tunnel-connection-established", {
       tunnelSocket,
     });
+    // Confirm protocol and send authentication credentials
     authenticateWithServer(tunnelSocket, masterClient);
   };
 
@@ -36,30 +37,31 @@ export function createTunnelContext(
   tunnelSocket.setTimeout(0);
   tunnelSocket.setNoDelay(true);
 
-  const tunnelSocketContext = new SocketContext(tunnelSocket);
+  const clientConnection = new ClientConnection(tunnelSocket);
 
-  setupDataListener(masterClient, tunnelSocketContext, localServicePort);
+  setupDataListener(masterClient, clientConnection, localServicePort);
 
-  tunnelSocketContext.socket.on("end", () => {
+  clientConnection.socket.on("close", (hadError) => {
     masterClient.events.emit("tunnel-disconnected", {
-      tunnelSocket: tunnelSocketContext.socket,
+      tunnelSocket: clientConnection.socket,
+      hadError,
     });
-    tunnelSocketContext.socket.destroy();
-    for (const [_, serviceSocket] of tunnelSocketContext.destinationSockets) {
+    clientConnection.socket.destroy();
+    for (const [_, serviceSocket] of clientConnection.destinationSockets) {
       serviceSocket.destroy();
     }
-    tunnelSocketContext.destinationSockets.clear();
-    tunnelSocketContext.pendingData.clear();
+    clientConnection.destinationSockets.clear();
+    clientConnection.pendingData.clear();
     masterClient.tunnelSocketContext = null;
     masterClient.reconnectToServer();
   });
 
-  tunnelSocketContext.socket.on("error", (err) => {
+  clientConnection.socket.on("error", (err) => {
     masterClient.events.emit("tunnel-error", {
-      tunnelSocket: tunnelSocketContext.socket,
+      tunnelSocket: clientConnection.socket,
       err,
     });
   });
 
-  return tunnelSocketContext;
+  return clientConnection;
 }

@@ -2,13 +2,12 @@ import net from "node:net";
 import type { ServerEvents, TypeSafeEventEmitter } from "./events.ts";
 import EventEmitter from "node:events";
 import { setupClientSocket } from "./server/setup-client-socket.ts";
-import { SocketContext } from "./shared/SocketContext.ts";
 import nodeTls from "node:tls";
+import { ClientTunnel } from "./server/ClientTunnel.ts";
 
 export class TunnelServer {
-  public tunnels = new Map<net.Socket, net.Server>();
+  public tunnels = new Set<ClientTunnel>();
   private server: net.Server;
-  public authenticatedClients = new Map<net.Socket, Record<string, unknown>>();
   public events: TypeSafeEventEmitter<ServerEvents> = new EventEmitter();
 
   tls:
@@ -48,7 +47,8 @@ export class TunnelServer {
       clientSocket.setKeepAlive(true, 30000);
       clientSocket.setTimeout(0);
       clientSocket.setNoDelay(true);
-      const socketContext = new SocketContext(clientSocket);
+      const socketContext = new ClientTunnel(clientSocket);
+      this.tunnels.add(socketContext);
       setupClientSocket(this, socketContext);
     };
 
@@ -76,9 +76,9 @@ export class TunnelServer {
 
   stop() {
     this.server.close();
-    for (const [socket, tunnel] of this.tunnels) {
-      socket.destroy();
-      tunnel.close();
+    for (const socketContext of this.tunnels) {
+      socketContext.socket.destroy();
+      socketContext.tunnel?.close();
     }
   }
 }

@@ -13,17 +13,16 @@ export class SocketContext {
   // streamId -> destination socket (visitor on the server and service on the client)
   public destinationSockets: Map<number, net.Socket>;
 
-  /**
-   * Sockets to the local service that are in the process of connecting.
-   * If data arrives before the socket is even connected, it will be stored in `pendingData`.
-   * This is currently only being used by the client.
-   */
-  public pendingData: Map<net.Socket, Buffer[]>;
+  // Whether the protocol has been confirmed by the other party (magic bytes sent from client to server or vice versa)
+  isProtocolConfirmed: boolean;
+  // Whether the handshake has been acknowledged by the other party (handshake message sent from client to server or vice versa)
+  isHandshakeAcknowledged: boolean;
 
   constructor(socket: net.Socket) {
     this.socket = socket;
     this.receiveBuffer = Buffer.alloc(0);
     this.destinationSockets = new Map();
-    this.pendingData = new Map();
+    this.isProtocolConfirmed = false;
+    this.isHandshakeAcknowledged = false;
   }
 }

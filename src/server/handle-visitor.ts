@@ -1,9 +1,9 @@
 import type { TunnelServer } from "../server.ts";
 
 import type net from "node:net";
-import type { SocketContext } from "../shared/SocketContext.ts";
 import { getStreamId } from "./get-stream-id.ts";
 import { encodeMessage } from "../shared/encode-message.ts";
+import type { ClientTunnel } from "./ClientTunnel.ts";
 
 /**
  * When a new visitor connects to the tunnel, handle all communication
@@ -12,14 +12,13 @@ import { encodeMessage } from "../shared/encode-message.ts";
 export function handleVisitor(
   masterServer: TunnelServer,
   visitorSocket: net.Socket,
-  clientSocketContext: SocketContext,
-  tunnel: net.Server,
+  clientTunnel: ClientTunnel,
 ) {
-  const streamId = getStreamId(clientSocketContext);
+  const streamId = getStreamId(clientTunnel);
   // Add the visitor socket to the client socket context
-  clientSocketContext.destinationSockets.set(streamId, visitorSocket);
+  clientTunnel.destinationSockets.set(streamId, visitorSocket);
 
-  const clientSocket = clientSocketContext.socket;
+  const clientSocket = clientTunnel.socket;
 
   // Manual data forwarding instead of pipe() to prevent automatic end propagation
   visitorSocket.on("data", (chunk) => {
@@ -41,7 +40,7 @@ export function handleVisitor(
     if (clientSocket.writable) {
       clientSocket.write(encodedMessage);
     }
-    clientSocketContext.destinationSockets.delete(streamId);
+    clientTunnel.destinationSockets.delete(streamId);
   });
 
   visitorSocket.on("error", (err) => {
@@ -54,7 +53,7 @@ export function handleVisitor(
     if (clientSocket.writable) {
       clientSocket.write(encodedMessage);
     }
-    clientSocketContext.destinationSockets.delete(streamId);
+    clientTunnel.destinationSockets.delete(streamId);
     visitorSocket.destroy();
   });
 }

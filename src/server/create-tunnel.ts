@@ -1,19 +1,19 @@
 import type { TunnelServer } from "../server.ts";
-import type { SocketContext } from "../shared/SocketContext.ts";
 import net from "node:net";
 import { handleVisitor } from "./handle-visitor.ts";
-import { encodeMessage } from "../shared/encode-message.ts";
+import { encodeHandshakeMessage } from "../shared/encode-message.ts";
 import nodeTls from "node:tls";
+import type { ClientTunnel } from "./ClientTunnel.ts";
 
 /**
  * Create a tunnel that will forward traffic to and from the client socket. This should be called AFTER the client has authenticated.
  */
 export function createTunnel(
   masterServer: TunnelServer,
-  clientSocketContext: SocketContext,
+  clientTunnel: ClientTunnel,
   clientAuthenticationCredentials: Record<string, unknown>,
 ) {
-  const clientSocket = clientSocketContext.socket;
+  const clientSocket = clientTunnel.socket;
   // Create a proxy server that will forward connections to the client
   let tunnel: net.Server;
 
@@ -23,7 +23,7 @@ export function createTunnel(
       tunnelServer: tunnel,
       visitorSocket,
     });
-    handleVisitor(masterServer, visitorSocket, clientSocketContext, tunnel);
+    handleVisitor(masterServer, visitorSocket, clientTunnel);
   };
 
   // biome-ignore lint/complexity/useOptionalChain: false positive? tls can be `false`
@@ -44,7 +44,7 @@ export function createTunnel(
       clientAuthenticationCredentials,
       secure: tunnel instanceof nodeTls.Server,
     });
-    masterServer.tunnels.set(clientSocket, tunnel);
+    clientTunnel.tunnel = tunnel;
     // send authentication ack to client
     try {
       const address = tunnel.address();
@@ -54,11 +54,7 @@ export function createTunnel(
           `Server address is a string (${address}), expected an object`,
         );
       const assignedPort = address.port;
-      const message = encodeMessage(
-        0,
-        "handshake",
-        Buffer.from(JSON.stringify({ port: assignedPort })),
-      );
+      const message = encodeHandshakeMessage({ port: assignedPort });
       clientSocket.write(message);
     } catch (err) {
       clientSocket.destroy(err instanceof Error ? err : new Error(String(err)));

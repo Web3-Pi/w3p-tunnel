@@ -1,5 +1,5 @@
 import type { TunnelServer } from "../server.ts";
-import type { SocketContext } from "../shared/SocketContext.ts";
+import type { ClientTunnel } from "./ClientTunnel.ts";
 import { setupDataListener } from "./setup-data-listener.ts";
 
 /**
@@ -8,23 +8,21 @@ import { setupDataListener } from "./setup-data-listener.ts";
  */
 export function setupClientSocket(
   masterServer: TunnelServer,
-  clientSocketContext: SocketContext,
+  clientTunnel: ClientTunnel,
 ) {
-  const clientSocket = clientSocketContext.socket;
+  const clientSocket = clientTunnel.socket;
 
-  setupDataListener(masterServer, clientSocketContext);
+  setupDataListener(masterServer, clientTunnel);
 
   const cleanupClientSocket = () => {
-    const tunnel = masterServer.tunnels.get(clientSocket);
-    if (tunnel) {
-      tunnel.close();
-      masterServer.tunnels.delete(clientSocket);
+    if (clientTunnel.tunnel) {
+      clientTunnel.tunnel.close();
     }
-    for (const [_, visitorSocket] of clientSocketContext.destinationSockets) {
+    masterServer.tunnels.delete(clientTunnel);
+    for (const [_, visitorSocket] of clientTunnel.destinationSockets) {
       visitorSocket.destroy();
     }
-    clientSocketContext.destinationSockets.clear();
-    masterServer.authenticatedClients.delete(clientSocket);
+    clientTunnel.destinationSockets.clear();
     clientSocket.removeAllListeners();
     clientSocket.destroy();
   };

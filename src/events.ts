@@ -7,6 +7,7 @@ export type ServerEvents = {
   "client-disconnected": { clientSocket: net.Socket };
   "client-error": { clientSocket: net.Socket; err: Error };
   "client-authentication-failed": { clientSocket: net.Socket; err: Error };
+  "client-protocol-confirmed": { clientSocket: net.Socket };
   "tunnel-created": {
     clientSocket: net.Socket;
     tunnelServer: net.Server;
@@ -67,6 +68,9 @@ export type ClientEvents = {
     tunnelSocket: net.Socket;
   };
   "tunnel-connection-established": { tunnelSocket: net.Socket };
+  "tunnel-protocol-confirmed": {
+    tunnelSocket: net.Socket;
+  };
   "authentication-credentials-sent": {
     tunnelSocket: net.Socket;
     authenticationCredentials: Record<string, unknown>;
@@ -76,7 +80,7 @@ export type ClientEvents = {
     assignedPort: number;
   };
   "tunnel-error": { tunnelSocket: net.Socket; err: Error };
-  "tunnel-disconnected": { tunnelSocket: net.Socket };
+  "tunnel-disconnected": { tunnelSocket: net.Socket; hadError: boolean };
   "tunnel-reconnect-queued": { timeout: number };
 };
 

@@ -73,13 +73,17 @@ export class TunnelClient {
   }
 
   stop() {
-    if (!this.tunnelSocketContext) return;
     if (this.#reconnectTimeout) clearTimeout(this.#reconnectTimeout);
     this.#isDestroyed = true;
+    if (!this.tunnelSocketContext) return;
     this.tunnelSocketContext.socket.end();
     for (const [_, serviceSocket] of this.tunnelSocketContext
       .destinationSockets) {
       serviceSocket.destroy();
     }
+  }
+
+  get isDestroyed() {
+    return this.#isDestroyed;
   }
 }

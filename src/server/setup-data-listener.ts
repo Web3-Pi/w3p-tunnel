@@ -1,33 +1,62 @@
 import type { TunnelServer } from "../server.ts";
-import { decodeMessage } from "../shared/decode-message.ts";
-import type { SocketContext } from "../shared/SocketContext.ts";
+import { decodeMessage, parseMessageBody } from "../shared/decode-message.ts";
 import { authenticateClient } from "./authenticate-client.ts";
+import { MAGIC_BYTES, MAGIC_BYTES_LENGTH } from "../shared/constants.ts";
+import type { ClientTunnel } from "./ClientTunnel.ts";
 
 export function setupDataListener(
   masterServer: TunnelServer,
-  clientSocketContext: SocketContext,
+  clientTunnel: ClientTunnel,
 ) {
-  const clientSocket = clientSocketContext.socket;
+  const clientSocket = clientTunnel.socket;
   function chunkCallback(chunk: Buffer) {
+    if (!clientTunnel || clientSocket.destroyed)
+      throw new Error("Client socket not created");
+
+    clientTunnel.receiveBuffer = Buffer.concat([
+      clientTunnel.receiveBuffer,
+      chunk,
+    ]);
+
     try {
-      for (const { streamId, messageType, messageData } of decodeMessage(
-        chunk,
-        clientSocketContext,
-      )) {
-        if (!masterServer.authenticatedClients.has(clientSocket)) {
-          if (messageType !== "handshake") {
-            masterServer.events.emit("client-error", {
-              clientSocket,
-              err: new Error("Client sent a message before handshake"),
-            });
-            clientSocket.destroy();
-            continue;
-          }
-          authenticateClient(masterServer, clientSocketContext, messageData);
+      // The first received chunk must begin with magic bytes to confirm the protocol
+      if (!clientTunnel.isProtocolConfirmed) {
+        if (clientTunnel.receiveBuffer.length < MAGIC_BYTES_LENGTH) {
+          // Not enough data yet
+          return;
+        }
+        const receivedMagicBytes = clientTunnel.receiveBuffer.subarray(
+          0,
+          MAGIC_BYTES_LENGTH,
+        );
+        if (!(Buffer.compare(receivedMagicBytes, MAGIC_BYTES) === 0)) {
+          throw new Error("Invalid magic bytes");
+        }
+        clientTunnel.isProtocolConfirmed = true;
+        // remove the magic bytes from the receive buffer
+        clientTunnel.receiveBuffer =
+          clientTunnel.receiveBuffer.subarray(MAGIC_BYTES_LENGTH);
+        masterServer.events.emit("client-protocol-confirmed", {
+          clientSocket,
+        });
+        // the rest of the receiveBuffer can now be safely decoded
+      }
+
+      for (const { messageBody } of decodeMessage(clientTunnel)) {
+        const expectingHandshake = !clientTunnel.isHandshakeAcknowledged;
+        const parsedMessage = parseMessageBody(messageBody, expectingHandshake);
+        if (parsedMessage.messageType === "handshake") {
+          // this function will throw an error if the handshake is invalid
+          authenticateClient(masterServer, clientTunnel, parsedMessage.data);
           continue;
         }
-        const visitorSocket =
-          clientSocketContext.destinationSockets.get(streamId);
+        if (expectingHandshake) {
+          throw new Error(
+            "Expected a handshake message but got something else",
+          );
+        }
+        const { streamId, messageType, messageData } = parsedMessage;
+        const visitorSocket = clientTunnel.destinationSockets.get(streamId);
         switch (messageType) {
           case "data": {
             if (!visitorSocket) {
@@ -44,7 +73,7 @@ export function setupDataListener(
                   `Received data from a client but the corresponding visitor socket (${streamId}) is not writable`,
                 ),
               });
-              clientSocketContext.destinationSockets.delete(streamId);
+              clientTunnel.destinationSockets.delete(streamId);
               visitorSocket.destroy();
               break;
             }
@@ -64,7 +93,7 @@ export function setupDataListener(
               break;
             }
             visitorSocket.destroy();
-            clientSocketContext.destinationSockets.delete(streamId);
+            clientTunnel.destinationSockets.delete(streamId);
             break;
           }
           default: {
@@ -77,11 +106,7 @@ export function setupDataListener(
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      masterServer.events.emit("client-error", {
-        err: error,
-        clientSocket,
-      });
-      clientSocketContext.receiveBuffer = Buffer.alloc(0);
+      clientTunnel.receiveBuffer = Buffer.alloc(0);
       clientSocket.destroy(error);
     }
   }

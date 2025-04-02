@@ -1,40 +1,78 @@
 import type { TunnelClient } from "../client.ts";
-import { decodeMessage } from "../shared/decode-message.ts";
-import type { SocketContext } from "../shared/SocketContext.ts";
+import { MAGIC_BYTES, MAGIC_BYTES_LENGTH } from "../shared/constants.ts";
+import { decodeMessage, parseMessageBody } from "../shared/decode-message.ts";
+import type { ClientConnection } from "./ClientConnection.ts";
 import { handleHandshakeResponse } from "./handle-handshake-response.ts";
 import { handleNewStreamId } from "./handle-new-stream-id.ts";
 
 export function setupDataListener(
   masterClient: TunnelClient,
-  tunnelSocketContext: SocketContext,
+  clientConnection: ClientConnection,
   localServicePort: number,
 ) {
-  const tunnelSocket = tunnelSocketContext.socket;
-  tunnelSocketContext.socket.on("data", (chunk) => {
-    if (!tunnelSocketContext) throw new Error("Tunnel socket not created");
+  const tunnelSocket = clientConnection.socket;
+  clientConnection.socket.on("data", (chunk) => {
+    if (!clientConnection || tunnelSocket.destroyed)
+      throw new Error("Tunnel socket not created");
+
+    clientConnection.receiveBuffer = Buffer.concat([
+      clientConnection.receiveBuffer,
+      chunk,
+    ]);
 
     try {
-      for (const { streamId, messageType, messageData } of decodeMessage(
-        chunk,
-        tunnelSocketContext,
-      )) {
-        if (messageType === "handshake") {
+      // The first received chunk must begin with magic bytes to confirm the protocol
+      if (!clientConnection.isProtocolConfirmed) {
+        if (clientConnection.receiveBuffer.length < MAGIC_BYTES_LENGTH) {
+          // Not enough data yet
+          return;
+        }
+        const receivedMagicBytes = clientConnection.receiveBuffer.subarray(
+          0,
+          MAGIC_BYTES_LENGTH,
+        );
+        if (!(Buffer.compare(receivedMagicBytes, MAGIC_BYTES) === 0)) {
+          throw new Error("Invalid magic bytes");
+        }
+        clientConnection.isProtocolConfirmed = true;
+        // remove the magic bytes from the receive buffer
+        clientConnection.receiveBuffer =
+          clientConnection.receiveBuffer.subarray(MAGIC_BYTES_LENGTH);
+        masterClient.events.emit("tunnel-protocol-confirmed", {
+          tunnelSocket,
+        });
+        // the rest of the receiveBuffer can now be safely decoded
+      }
+
+      for (const { messageBody } of decodeMessage(clientConnection)) {
+        const expectingHandshake = !clientConnection.isHandshakeAcknowledged;
+        const parsedMessage = parseMessageBody(messageBody, expectingHandshake);
+        if (parsedMessage.messageType === "handshake") {
           // this function will throw an error if the handshake is invalid
-          handleHandshakeResponse(masterClient, tunnelSocket, messageData);
+          handleHandshakeResponse(
+            masterClient,
+            clientConnection,
+            parsedMessage.data,
+          );
           continue;
         }
+        if (expectingHandshake) {
+          throw new Error(
+            "Expected a handshake message but got something else",
+          );
+        }
+        const { streamId, messageType, messageData } = parsedMessage;
 
-        let serviceSocket =
-          tunnelSocketContext.destinationSockets.get(streamId);
+        let serviceSocket = clientConnection.destinationSockets.get(streamId);
         // If this message comes from a new stream ID, create a new service socket
         if (!serviceSocket) {
           handleNewStreamId(
             masterClient,
             streamId,
-            tunnelSocketContext,
+            clientConnection,
             localServicePort,
           );
-          serviceSocket = tunnelSocketContext.destinationSockets.get(streamId);
+          serviceSocket = clientConnection.destinationSockets.get(streamId);
           if (!serviceSocket) {
             masterClient.events.emit("error", {
               err: new Error(
@@ -50,17 +88,17 @@ export function setupDataListener(
               masterClient.events.emit("data-to-service", {
                 data: messageData,
                 serviceSocket,
-                tunnelSocket: tunnelSocketContext.socket,
+                tunnelSocket: clientConnection.socket,
               });
               serviceSocket.write(messageData);
               break;
             }
             // If the service socket is in the process of connecting, queue the data
             if (!serviceSocket.destroyed) {
-              let queue = tunnelSocketContext.pendingData.get(serviceSocket);
+              let queue = clientConnection.pendingData.get(serviceSocket);
               if (!queue) {
                 queue = [];
-                tunnelSocketContext.pendingData.set(serviceSocket, queue);
+                clientConnection.pendingData.set(serviceSocket, queue);
               }
               queue.push(messageData);
               break;
@@ -70,14 +108,14 @@ export function setupDataListener(
               serviceSocket,
               err: new Error("Tried to write to a closed socket"),
             });
-            tunnelSocketContext.pendingData.delete(serviceSocket);
+            clientConnection.pendingData.delete(serviceSocket);
             break;
           }
           case "error":
           case "close":
             serviceSocket.destroy();
-            tunnelSocketContext.destinationSockets.delete(streamId);
-            tunnelSocketContext.pendingData.delete(serviceSocket);
+            clientConnection.destinationSockets.delete(streamId);
+            clientConnection.pendingData.delete(serviceSocket);
             break;
           default:
             masterClient.events.emit("error", {
@@ -89,11 +127,11 @@ export function setupDataListener(
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       masterClient.events.emit("tunnel-error", {
-        tunnelSocket: tunnelSocketContext.socket,
+        tunnelSocket: clientConnection.socket,
         err: error,
       });
-      tunnelSocketContext.receiveBuffer = Buffer.alloc(0);
-      tunnelSocketContext.socket.destroy(error);
+      clientConnection.receiveBuffer = Buffer.alloc(0);
+      clientConnection.socket.destroy(error);
     }
   });
 }

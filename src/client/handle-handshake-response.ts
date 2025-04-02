@@ -1,17 +1,18 @@
 import type { TunnelClient } from "../client.ts";
-import type net from "node:net";
+import type { ClientConnection } from "./ClientConnection.ts";
 
 export function handleHandshakeResponse(
   masterClient: TunnelClient,
-  tunnelSocket: net.Socket,
-  messageData: Buffer,
+  clientConnection: ClientConnection,
+  messageData: Record<string, unknown>,
 ) {
-  const assignedPort = JSON.parse(messageData.toString()).port;
-  if (Number.isNaN(assignedPort)) {
+  const assignedPort = messageData.port;
+  if (Number.isNaN(assignedPort) || typeof assignedPort !== "number") {
     throw new Error(`Got assigned a non-number port: ${assignedPort}`);
   }
+  clientConnection.isHandshakeAcknowledged = true;
   masterClient.events.emit("authentication-acknowledged", {
-    tunnelSocket,
+    tunnelSocket: clientConnection.socket,
     assignedPort,
   });
 }
