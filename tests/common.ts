@@ -3,7 +3,39 @@ import { TunnelServer } from "../src/server.ts";
 import { once } from "node:events";
 import { TunnelClient } from "../src/client.ts";
 import type net from "node:net";
-import type nodeTls from "node:tls";
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import type { ClientEvents, ServerEvents } from "../src/events.ts";
+import type { ClientTunnel } from "../src/server/ClientTunnel.ts";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export function getTestTlsOptions(type: "server" | "client") {
+  const keyPath = path.join(__dirname, "../server-key.pem");
+  const certPath = path.join(__dirname, "../server-cert.pem");
+
+  if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
+    throw new Error("TLS files not found");
+  }
+
+  if (type === "server") {
+    return {
+      mainServer: {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      },
+      tunnelServer: {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      },
+    };
+  }
+  return {
+    ca: fs.readFileSync(certPath), // Trust the self-signed cert
+  };
+}
 
 export async function startSimpleServer(port = 8080) {
   const { resolve, reject, promise } = Promise.withResolvers<void>();
@@ -23,14 +55,9 @@ export async function stopSimpleServer(server: http.Server) {
   await once(server, "close");
 }
 
-export async function startTunnelServer(
-  port = 9000,
-  tls?: {
-    mainServer?: false | nodeTls.TlsOptions;
-    tunnelServer?: false | nodeTls.TlsOptions;
-  },
-) {
-  const tunnelServer = new TunnelServer({ tls });
+export async function startTunnelServer(port = 9000, useTLs = false) {
+  const tlsOptions = useTLs ? getTestTlsOptions("server") : false;
+  const tunnelServer = new TunnelServer({ tls: tlsOptions });
 
   // Add debug listeners for all server events
   tunnelServer.events.on("client-connected", () =>
@@ -86,6 +113,9 @@ export async function startTunnelServer(
   tunnelServer.events.on("client-authentication-failed", ({ err }) =>
     console.debug("Server event: client-authentication-failed", err),
   );
+  tunnelServer.events.on("client-protocol-confirmed", () =>
+    console.debug("Server event: client-protocol-confirmed"),
+  );
 
   tunnelServer.start(port);
   await once(tunnelServer.events, "main-server-start", {
@@ -97,7 +127,10 @@ export async function startTunnelServer(
 export async function stopTunnelServer(tunnelServer: TunnelServer) {
   console.log("Stopping tunnel server");
   tunnelServer.stop();
-  await once(tunnelServer.events, "main-server-end");
+  await onceWithAbort(tunnelServer, "main-server-end", {
+    timeout: 5000,
+    message: "Main server end event not received",
+  });
 }
 
 export async function startTunnelClient({
@@ -108,14 +141,15 @@ export async function startTunnelClient({
     id: "TEST_MACHINE_ID",
   } as Record<string, unknown>,
   autoStart = true,
-  tls = false as false | nodeTls.ConnectionOptions,
+  useTls = false,
 } = {}) {
+  const tlsOptions = useTls ? getTestTlsOptions("client") : false;
   const tunnelClient = new TunnelClient({
     localServicePort: clientPort,
     tunnelServerPort: serverPort,
     tunnelServerHost: tunnelHost,
     authenticationCredentials,
-    tls,
+    tls: tlsOptions,
   });
 
   // Add debug listeners for all client events
@@ -154,11 +188,14 @@ export async function startTunnelClient({
   tunnelClient.events.on("tunnel-error", ({ err }) =>
     console.debug("Client event: tunnel-error", err),
   );
-  tunnelClient.events.on("tunnel-disconnected", () =>
-    console.debug("Client event: tunnel-disconnected"),
+  tunnelClient.events.on("tunnel-disconnected", ({ hadError }) =>
+    console.debug("Client event: tunnel-disconnected", { hadError }),
   );
   tunnelClient.events.on("tunnel-reconnect-queued", ({ timeout }) =>
     console.debug("Client event: tunnel-reconnect-queued", { timeout }),
+  );
+  tunnelClient.events.on("tunnel-protocol-confirmed", () =>
+    console.debug("Client event: tunnel-protocol-confirmed"),
   );
 
   if (autoStart) {
@@ -169,17 +206,36 @@ export async function startTunnelClient({
 }
 
 export async function stopTunnelClient(tunnelClient: TunnelClient) {
+  if (tunnelClient.isDestroyed) {
+    console.log("Tried to stop tunnel client but it's already stopped");
+    return;
+  }
   console.log("Stopping tunnel client");
   tunnelClient.stop();
-  await once(tunnelClient.events, "tunnel-disconnected");
+  await onceWithAbort(tunnelClient, "tunnel-disconnected", {
+    message: "Tunnel disconnected event not received",
+    timeout: 500,
+  });
 }
 
-export function getPortOrThrow(server: net.Server) {
-  const address = server.address();
-  if (!address) throw new Error("Server address not found");
-  if (typeof address === "string")
-    throw new Error(
-      `Server address is a string (${address}), expected an object`,
-    );
-  return address.port;
+export function getPortOrThrow(tunnel: ClientTunnel) {
+  if (!tunnel.tunnelAddress) throw new Error("Tunnel address not found");
+  return tunnel.tunnelAddress.port;
+}
+
+export async function onceWithAbort<T extends TunnelClient | TunnelServer>(
+  emitter: T,
+  event: T extends TunnelClient ? keyof ClientEvents : keyof ServerEvents,
+  options: {
+    timeout: number;
+    message: string;
+  },
+) {
+  try {
+    return await once(emitter.events, event, {
+      signal: AbortSignal.timeout(options.timeout),
+    });
+  } catch (err) {
+    throw new Error(options.message);
+  }
 }
