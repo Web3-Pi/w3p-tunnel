@@ -13,8 +13,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export function getTestTlsOptions(type: "server" | "client") {
-  const keyPath = path.join(__dirname, "../server-key.pem");
-  const certPath = path.join(__dirname, "../server-cert.pem");
+  const keyPath = path.join(__dirname, "./dummy-key.pem");
+  const certPath = path.join(__dirname, "./dummy-cert.pem");
 
   if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
     throw new Error("TLS files not found");
