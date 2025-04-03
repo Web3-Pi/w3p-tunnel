@@ -19,8 +19,7 @@ export function createTunnel(
 
   const visitorSocketListener = (visitorSocket: net.Socket) => {
     masterServer.events.emit("visitor-connected", {
-      clientSocket,
-      tunnelServer: tunnel,
+      clientTunnel,
       visitorSocket,
     });
     handleVisitor(masterServer, visitorSocket, clientTunnel);
@@ -38,13 +37,12 @@ export function createTunnel(
 
   // Start listening on a random port
   tunnel.listen(0, () => {
+    clientTunnel.tunnel = tunnel;
     masterServer.events.emit("tunnel-created", {
-      clientSocket,
-      tunnelServer: tunnel,
+      clientTunnel,
       clientAuthenticationCredentials,
       secure: tunnel instanceof nodeTls.Server,
     });
-    clientTunnel.tunnel = tunnel;
     // send authentication ack to client
     try {
       const address = tunnel.address();
@@ -63,8 +61,7 @@ export function createTunnel(
 
   tunnel.on("error", (err) => {
     masterServer.events.emit("tunnel-error", {
-      clientSocket,
-      tunnelServer: tunnel,
+      clientTunnel,
       err,
     });
   });

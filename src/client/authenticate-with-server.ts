@@ -1,17 +1,17 @@
-import type net from "node:net";
 import type { TunnelClient } from "../client.ts";
 import { encodeHandshakeMessage } from "../shared/encode-message.ts";
+import type { ClientConnection } from "./ClientConnection.ts";
 
 export function authenticateWithServer(
-  tunnelSocket: net.Socket,
+  clientConnection: ClientConnection,
   masterClient: TunnelClient,
 ) {
   const message = encodeHandshakeMessage(
     masterClient.authenticationCredentials,
   );
-  tunnelSocket.write(message);
+  clientConnection.socket.write(message);
   masterClient.events.emit("authentication-credentials-sent", {
-    tunnelSocket,
+    clientConnection,
     authenticationCredentials: masterClient.authenticationCredentials,
   });
 }

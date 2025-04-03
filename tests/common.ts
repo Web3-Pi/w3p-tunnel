@@ -71,10 +71,11 @@ export async function startTunnelServer(port = 9000, useTLs = false) {
   );
   tunnelServer.events.on(
     "tunnel-created",
-    ({ clientAuthenticationCredentials, secure }) =>
+    ({ clientAuthenticationCredentials, secure, clientTunnel }) =>
       console.debug("Server event: tunnel-created", {
         clientAuthenticationCredentials,
         secure,
+        address: clientTunnel.tunnelAddress,
       }),
   );
   tunnelServer.events.on("tunnel-destroyed", () =>

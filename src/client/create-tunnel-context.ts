@@ -16,10 +16,10 @@ export function createTunnelContext(
 
   const connectionListener = () => {
     masterClient.events.emit("tunnel-connection-established", {
-      tunnelSocket,
+      clientConnection,
     });
     // Confirm protocol and send authentication credentials
-    authenticateWithServer(tunnelSocket, masterClient);
+    authenticateWithServer(clientConnection, masterClient);
   };
 
   if (tls) {
@@ -43,7 +43,7 @@ export function createTunnelContext(
 
   clientConnection.socket.on("close", (hadError) => {
     masterClient.events.emit("tunnel-disconnected", {
-      tunnelSocket: clientConnection.socket,
+      clientConnection,
       hadError,
     });
     clientConnection.socket.destroy();
@@ -58,7 +58,7 @@ export function createTunnelContext(
 
   clientConnection.socket.on("error", (err) => {
     masterClient.events.emit("tunnel-error", {
-      tunnelSocket: clientConnection.socket,
+      clientConnection,
       err,
     });
   });

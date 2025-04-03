@@ -19,28 +19,26 @@ tunnelServer.events.on("main-server-start", ({ port, secure }) => {
 
 tunnelServer.events.on(
   "tunnel-created",
-  ({ clientSocket, tunnelServer, secure, clientAuthenticationCredentials }) => {
-    const clientAddr = `${clientSocket.remoteAddress}:${clientSocket.remotePort}`;
-    const tunnelAddr = tunnelServer.address();
-    if (tunnelAddr && typeof tunnelAddr !== "string") {
-      console.log(
-        `Tunnel created for client ${clientAddr} at public port ${tunnelAddr.port} (TLS: ${secure})`
-      );
-      console.log("Client Credentials:", clientAuthenticationCredentials);
-    }
+  ({ clientAuthenticationCredentials, secure, clientTunnel }) => {
+    const tunnelAddr = clientTunnel.tunnelAddress;
+    console.log(
+      `Tunnel created for client ${JSON.stringify(
+        clientAuthenticationCredentials
+      )} at public port ${tunnelAddr?.port} (TLS: ${secure})`
+    );
   }
 );
 
-tunnelServer.events.on("client-disconnected", ({ clientSocket }) => {
-  console.log(`Client disconnected: ${clientSocket.remoteAddress}`);
+tunnelServer.events.on("client-disconnected", ({ clientTunnel }) => {
+  console.log(
+    `Client with credentials ${JSON.stringify(
+      clientTunnel.authenticationCredentials
+    )} disconnected`
+  );
 });
 
 tunnelServer.events.on("error", ({ err }) => {
   console.error("Generic Server Error:", err);
-});
-
-tunnelServer.events.on("client-error", ({ clientSocket, err }) => {
-  console.error(`Error from client ${clientSocket.remoteAddress}:`, err);
 });
 
 tunnelServer.start(9000); // Start control server on port 9000
@@ -75,7 +73,17 @@ tunnelServer.start(9000);
 _Requires a TLS certificate and key. For testing purposes, you can generate a self-signed certificate with `openssl`:_
 
 ```sh
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost'
+# Generate a private key
+openssl genpkey -algorithm RSA -out server-key.pem -pkeyopt rsa_keygen_bits:2048
+
+# Generate a Certificate Signing Request (CSR)
+openssl req -new -key server-key.pem -out server-csr.pem -subj "/CN=localhost"
+
+# Generate a self-signed certificate valid for 365 days
+openssl x509 -req -days 365 -in server-csr.pem -signkey server-key.pem -out server-cert.pem
+
+# Clean up CSR (optional)
+rm server-csr.pem
 ```
 
 ```ts
@@ -123,10 +131,12 @@ const client = new TunnelClient({
   },
 });
 
-client.events.on("tunnel-connection-established", ({ tunnelSocket }) => {
-  console.log(
-    `Connected to tunnel server: ${tunnelSocket.remoteAddress}:${tunnelSocket.remotePort}`
-  );
+client.events.on("tunnel-connection-established", () => {
+  console.log("Established connection to the tunnel server");
+});
+
+client.events.on("authentication-credentials-sent", () => {
+  console.log("Sent authentication credentials to the tunnel server");
 });
 
 client.events.on("authentication-acknowledged", ({ assignedPort }) => {
@@ -144,7 +154,7 @@ client.events.on("tunnel-error", ({ err }) => {
   console.error("Tunnel connection error:", err);
 });
 
-client.events.on("service-error", ({ serviceSocket, err }) => {
+client.events.on("service-error", ({ err }) => {
   console.error(
     "Error connecting to or communicating with local service:",
     err

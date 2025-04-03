@@ -43,13 +43,13 @@ export class TunnelServer {
     this.tls = tls || false;
 
     const connectionCallback = (clientSocket: net.Socket) => {
-      this.events.emit("client-connected", { clientSocket });
       clientSocket.setKeepAlive(true, 30000);
       clientSocket.setTimeout(0);
       clientSocket.setNoDelay(true);
-      const socketContext = new ClientTunnel(clientSocket);
-      this.tunnels.add(socketContext);
-      setupClientSocket(this, socketContext);
+      const clientTunnel = new ClientTunnel(clientSocket);
+      this.events.emit("client-connected", { clientTunnel });
+      this.tunnels.add(clientTunnel);
+      setupClientSocket(this, clientTunnel);
     };
 
     // biome-ignore lint/complexity/useOptionalChain: false positive? tls can be `false`

@@ -39,7 +39,7 @@ export function setupDataListener(
         clientConnection.receiveBuffer =
           clientConnection.receiveBuffer.subarray(MAGIC_BYTES_LENGTH);
         masterClient.events.emit("tunnel-protocol-confirmed", {
-          tunnelSocket,
+          clientConnection,
         });
         // the rest of the receiveBuffer can now be safely decoded
       }
@@ -87,8 +87,7 @@ export function setupDataListener(
             if (serviceSocket.writable) {
               masterClient.events.emit("data-to-service", {
                 data: messageData,
-                serviceSocket,
-                tunnelSocket: clientConnection.socket,
+                clientConnection,
               });
               serviceSocket.write(messageData);
               break;
@@ -127,7 +126,7 @@ export function setupDataListener(
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       masterClient.events.emit("tunnel-error", {
-        tunnelSocket: clientConnection.socket,
+        clientConnection,
         err: error,
       });
       clientConnection.receiveBuffer = Buffer.alloc(0);

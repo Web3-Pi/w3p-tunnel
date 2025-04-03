@@ -37,7 +37,7 @@ export function setupDataListener(
         clientTunnel.receiveBuffer =
           clientTunnel.receiveBuffer.subarray(MAGIC_BYTES_LENGTH);
         masterServer.events.emit("client-protocol-confirmed", {
-          clientSocket,
+          clientTunnel,
         });
         // the rest of the receiveBuffer can now be safely decoded
       }
@@ -78,7 +78,7 @@ export function setupDataListener(
               break;
             }
             masterServer.events.emit("data-to-visitor", {
-              clientSocket,
+              clientTunnel,
               visitorSocket,
               data: messageData,
             });

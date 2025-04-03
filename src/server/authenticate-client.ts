@@ -19,11 +19,12 @@ export async function authenticateClient(
     }
     // client is authenticated! Create a tunnel
     clientTunnel.isHandshakeAcknowledged = true;
+    clientTunnel.authenticationCredentials = messageData;
     createTunnel(masterServer, clientTunnel, messageData);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     masterServer.events.emit("client-authentication-failed", {
-      clientSocket,
+      clientTunnel,
       err: error,
     });
     clientSocket.destroy(error);

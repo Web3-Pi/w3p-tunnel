@@ -29,7 +29,7 @@ export function setupClientSocket(
 
   clientSocket.on("error", (err) => {
     masterServer.events.emit("client-error", {
-      clientSocket,
+      clientTunnel,
       err,
     });
     cleanupClientSocket();
@@ -37,7 +37,7 @@ export function setupClientSocket(
 
   clientSocket.on("close", () => {
     masterServer.events.emit("client-disconnected", {
-      clientSocket,
+      clientTunnel,
     });
     cleanupClientSocket();
   });

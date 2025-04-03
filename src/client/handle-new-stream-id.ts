@@ -21,8 +21,7 @@ export function handleNewStreamId(
   localSocket.on("data", (chunk) => {
     masterClient.events.emit("data-from-service", {
       data: chunk,
-      serviceSocket: localSocket,
-      tunnelSocket: clientConnection.socket,
+      clientConnection,
     });
     const message = encodeMessage(streamId, "data", chunk);
     if (clientConnection.socket.writable) {

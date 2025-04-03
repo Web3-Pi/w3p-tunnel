@@ -1,53 +1,51 @@
 import type net from "node:net";
 import type { EventEmitter } from "node:events";
+import type { ClientTunnel } from "./server/ClientTunnel.ts";
+import type { ClientConnection } from "./client/ClientConnection.ts";
 
 export type ServerEvents = {
   error: { err: Error };
-  "client-connected": { clientSocket: net.Socket };
-  "client-disconnected": { clientSocket: net.Socket };
-  "client-error": { clientSocket: net.Socket; err: Error };
-  "client-authentication-failed": { clientSocket: net.Socket; err: Error };
-  "client-protocol-confirmed": { clientSocket: net.Socket };
+  "client-connected": { clientTunnel: ClientTunnel };
+  "client-disconnected": { clientTunnel: ClientTunnel };
+  "client-error": { clientTunnel: ClientTunnel; err: Error };
+  "client-authentication-failed": { clientTunnel: ClientTunnel; err: Error };
+  "client-protocol-confirmed": { clientTunnel: ClientTunnel };
   "tunnel-created": {
-    clientSocket: net.Socket;
-    tunnelServer: net.Server;
+    clientTunnel: ClientTunnel;
     clientAuthenticationCredentials: Record<string, unknown>;
     secure: boolean;
   };
   "tunnel-destroyed": {
-    clientSocket: net.Socket;
-    tunnelServer: net.Server;
+    clientTunnel: ClientTunnel;
   };
   "tunnel-error": {
-    clientSocket: net.Socket;
-    tunnelServer: net.Server;
+    clientTunnel: ClientTunnel;
     err: Error;
   };
   "main-server-error": { err: Error };
   "main-server-start": { port: number; secure: boolean };
   "main-server-end": undefined;
   "visitor-connected": {
-    clientSocket: net.Socket;
-    tunnelServer: net.Server;
+    clientTunnel: ClientTunnel;
     visitorSocket: net.Socket;
   };
   "visitor-disconnected": {
-    clientSocket: net.Socket;
+    clientTunnel: ClientTunnel;
     visitorSocket: net.Socket;
   };
   "visitor-error": {
-    clientSocket: net.Socket;
+    clientTunnel: ClientTunnel;
     visitorSocket: net.Socket;
     err: Error;
   };
   "data-from-visitor": {
     data: Buffer;
-    clientSocket: net.Socket;
+    clientTunnel: ClientTunnel;
     visitorSocket: net.Socket;
   };
   "data-to-visitor": {
     data: Buffer;
-    clientSocket: net.Socket;
+    clientTunnel: ClientTunnel;
     visitorSocket: net.Socket;
   };
 };
@@ -59,28 +57,29 @@ export type ClientEvents = {
   "service-disconnected": { serviceSocket: net.Socket };
   "data-to-service": {
     data: Buffer;
-    serviceSocket: net.Socket;
-    tunnelSocket: net.Socket;
+    clientConnection: ClientConnection;
   };
   "data-from-service": {
     data: Buffer;
-    serviceSocket: net.Socket;
-    tunnelSocket: net.Socket;
+    clientConnection: ClientConnection;
   };
-  "tunnel-connection-established": { tunnelSocket: net.Socket };
+  "tunnel-connection-established": { clientConnection: ClientConnection };
   "tunnel-protocol-confirmed": {
-    tunnelSocket: net.Socket;
+    clientConnection: ClientConnection;
   };
   "authentication-credentials-sent": {
-    tunnelSocket: net.Socket;
+    clientConnection: ClientConnection;
     authenticationCredentials: Record<string, unknown>;
   };
   "authentication-acknowledged": {
-    tunnelSocket: net.Socket;
+    clientConnection: ClientConnection;
     assignedPort: number;
   };
-  "tunnel-error": { tunnelSocket: net.Socket; err: Error };
-  "tunnel-disconnected": { tunnelSocket: net.Socket; hadError: boolean };
+  "tunnel-error": { clientConnection: ClientConnection; err: Error };
+  "tunnel-disconnected": {
+    clientConnection: ClientConnection;
+    hadError: boolean;
+  };
   "tunnel-reconnect-queued": { timeout: number };
 };
 

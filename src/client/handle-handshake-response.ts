@@ -12,7 +12,7 @@ export function handleHandshakeResponse(
   }
   clientConnection.isHandshakeAcknowledged = true;
   masterClient.events.emit("authentication-acknowledged", {
-    tunnelSocket: clientConnection.socket,
+    clientConnection,
     assignedPort,
   });
 }
