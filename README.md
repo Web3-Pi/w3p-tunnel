@@ -1,6 +1,6 @@
 # W3P Tunnel
 
-A set of tools to tunnel TCP traffic from a local port to a remote port. Supports TLS and authentication.
+A set of tools to tunnel TCP traffic from a local port to a remote port. Supports TLS and authentication. No dependencies other than node.js.
 
 ## Usage
 
@@ -293,3 +293,23 @@ These messages are used after the initial handshake to manage and relay data for
    - Mappings are cleaned up on both sides.
 
 This multiplexing allows many visitors to connect concurrently, each getting their own `StreamID` and corresponding connection to the local service, all tunneled over the single persistent connection between the Client and Server.
+
+## Development
+
+This project requires node 23.x or higher. If you have nvm installed, you can set the version defined in `.nvmrc` with:
+
+```sh
+nvm use
+```
+
+To install development dependencies:
+
+```sh
+npm install
+```
+
+To run tests use the integrated node test runner:
+
+```sh
+node --test tests/*.test.ts
+```
