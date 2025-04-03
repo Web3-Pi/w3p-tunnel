@@ -74,7 +74,8 @@ export function setupDataListener(
           );
           serviceSocket = clientConnection.destinationSockets.get(streamId);
           if (!serviceSocket) {
-            masterClient.events.emit("error", {
+            masterClient.events.emit("tunnel-error", {
+              clientConnection,
               err: new Error(
                 `Tried to create a service socket for stream ID ${streamId} but it was not found`,
               ),
@@ -117,7 +118,8 @@ export function setupDataListener(
             clientConnection.pendingData.delete(serviceSocket);
             break;
           default:
-            masterClient.events.emit("error", {
+            masterClient.events.emit("tunnel-error", {
+              clientConnection,
               err: new Error(`Unknown message type ${messageType}`),
             });
             break;

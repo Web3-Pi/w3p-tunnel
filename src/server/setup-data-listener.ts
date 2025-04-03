@@ -60,15 +60,19 @@ export function setupDataListener(
         switch (messageType) {
           case "data": {
             if (!visitorSocket) {
-              masterServer.events.emit("error", {
+              // This is a valid case, the visitor socket may have disconnected while
+              // the client was still processing their request
+              masterServer.events.emit("client-error", {
+                clientTunnel,
                 err: new Error(
-                  `No visitor socket found for stream ID ${streamId} (message type: ${messageType})`,
+                  `Received data from a client but the corresponding visitor socket (${streamId}) is not found`,
                 ),
               });
               break;
             }
             if (!visitorSocket.writable) {
-              masterServer.events.emit("error", {
+              masterServer.events.emit("client-error", {
+                clientTunnel,
                 err: new Error(
                   `Received data from a client but the corresponding visitor socket (${streamId}) is not writable`,
                 ),
@@ -97,7 +101,8 @@ export function setupDataListener(
             break;
           }
           default: {
-            masterServer.events.emit("error", {
+            masterServer.events.emit("client-error", {
+              clientTunnel,
               err: new Error(`Unknown message type ${messageType}`),
             });
             break;
