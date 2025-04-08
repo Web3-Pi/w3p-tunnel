@@ -11,7 +11,7 @@ A set of tools to tunnel TCP traffic from a local port to a remote port. Support
 **Basic example (no TLS, no authentication):**
 
 ```ts
-import { TunnelServer } from "w3p-tunnel";
+import { TunnelServer } from "@web3-pi/tunnel";
 
 const tunnelServer = new TunnelServer(); // No auth, no TLS
 
@@ -49,7 +49,7 @@ tunnelServer.start(9000); // Start control server on port 9000
 **Server with authentication:**
 
 ```ts
-import { TunnelServer } from "w3p-tunnel";
+import { TunnelServer } from "@web3-pi/tunnel";
 
 const tunnelServer = new TunnelServer({
   // Only allow clients whose credentials have id === 'allowed-client'
@@ -89,7 +89,7 @@ rm server-csr.pem
 ```
 
 ```ts
-import { TunnelServer } from "w3p-tunnel";
+import { TunnelServer } from "@web3-pi/tunnel";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -121,7 +121,7 @@ tunnelServer.start(9000);
 **Basic example (no TLS):**
 
 ```ts
-import { TunnelClient } from "w3p-tunnel";
+import { TunnelClient } from "@web3-pi/tunnel";
 
 const client = new TunnelClient({
   tunnelServerHost: "your-server-hostname.com", // Server hostname or IP
@@ -169,7 +169,7 @@ client.start();
 **Client connecting to TLS server:**
 
 ```ts
-import { TunnelClient } from "w3p-tunnel";
+import { TunnelClient } from "@web3-pi/tunnel";
 import fs from "node:fs";
 import path from "node:path";
 
