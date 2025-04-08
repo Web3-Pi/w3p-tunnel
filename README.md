@@ -2,6 +2,8 @@
 
 A set of tools to tunnel TCP traffic from a local port to a remote port. Supports TLS and authentication. No dependencies other than node.js.
 
+> ⚠️ **Note:** While this project is functional and stable, it is still in early development. It may contain bugs and the API could change in future versions. Use in production with caution.
+
 ## Usage
 
 ### Server
