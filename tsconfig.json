@@ -13,7 +13,6 @@
     "noImplicitOverride": true,
     "module": "NodeNext",
     "outDir": "dist",
-    "sourceMap": true,
     "erasableSyntaxOnly": true,
     "lib": ["es2024"],
     "rewriteRelativeImportExtensions": true,
