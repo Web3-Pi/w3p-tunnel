@@ -313,3 +313,9 @@ To run tests use the integrated node test runner:
 ```sh
 node --test tests/*.test.ts
 ```
+
+To format your code using biome:
+
+```sh
+npm run format
+```

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "target": "es2022",
+    "target": "ES2023",
     "allowJs": true,
     "resolveJsonModule": true,
     "moduleDetection": "force",
@@ -16,6 +16,8 @@
     "sourceMap": true,
     "erasableSyntaxOnly": true,
     "lib": ["es2024"],
-    "rewriteRelativeImportExtensions": true
-  }
+    "rewriteRelativeImportExtensions": true,
+    "declaration": true
+  },
+  "include": ["src/**/*.ts"]
 }
