@@ -25,9 +25,7 @@ describe("Authentication (No TLS)", () => {
   });
 
   afterEach(async () => {
-    await stopTunnelServer(server).catch((err) => {
-      console.error("Error during server cleanup", err);
-    });
+    await stopTunnelServer(server);
   });
 
   it("should reject client with invalid credentials", async () => {

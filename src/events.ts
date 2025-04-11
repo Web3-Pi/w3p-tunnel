@@ -81,6 +81,7 @@ export type ClientEvents = {
     hadError: boolean;
   };
   "tunnel-reconnect-queued": { timeout: number };
+  "tunnel-client-end": undefined;
 };
 
 export interface TypeSafeEventEmitter<Events extends Record<string, unknown>>

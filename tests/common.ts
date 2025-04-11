@@ -2,7 +2,6 @@ import http from "node:http";
 import { TunnelServer } from "../src/server.ts";
 import { once } from "node:events";
 import { TunnelClient } from "../src/client.ts";
-import type net from "node:net";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -127,11 +126,12 @@ export async function startTunnelServer(port = 9000, useTLs = false) {
 
 export async function stopTunnelServer(tunnelServer: TunnelServer) {
   console.log("Stopping tunnel server");
-  tunnelServer.stop();
-  await onceWithAbort(tunnelServer, "main-server-end", {
-    timeout: 5000,
+  const promise = onceWithAbort(tunnelServer, "main-server-end", {
+    timeout: 500,
     message: "Main server end event not received",
   });
+  tunnelServer.stop();
+  await promise;
 }
 
 export async function startTunnelClient({
@@ -212,11 +212,12 @@ export async function stopTunnelClient(tunnelClient: TunnelClient) {
     return;
   }
   console.log("Stopping tunnel client");
-  tunnelClient.stop();
-  await onceWithAbort(tunnelClient, "tunnel-disconnected", {
-    message: "Tunnel disconnected event not received",
+  const promise = onceWithAbort(tunnelClient, "tunnel-client-end", {
     timeout: 500,
+    message: "Tunnel client end event not received",
   });
+  tunnelClient.stop();
+  await promise;
 }
 
 export function getPortOrThrow(tunnel: ClientTunnel) {

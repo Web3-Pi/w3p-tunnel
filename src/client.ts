@@ -1,13 +1,13 @@
 import type net from "node:net";
 import type { ClientEvents, TypeSafeEventEmitter } from "./events.ts";
 import EventEmitter from "node:events";
-import type { SocketContext } from "./shared/SocketContext.ts";
 import { createTunnelContext } from "./client/create-tunnel-context.ts";
 import type nodeTls from "node:tls";
+import type { ClientConnection } from "./client/ClientConnection.ts";
 
 export class TunnelClient {
   serviceSocket: net.Socket | null = null;
-  tunnelSocketContext: SocketContext | null = null;
+  tunnelSocketContext: ClientConnection | null = null;
   events: TypeSafeEventEmitter<ClientEvents> = new EventEmitter();
 
   authenticationCredentials: Record<string, unknown>;
@@ -76,11 +76,21 @@ export class TunnelClient {
     if (this.#reconnectTimeout) clearTimeout(this.#reconnectTimeout);
     this.#isDestroyed = true;
     if (!this.tunnelSocketContext) return;
-    this.tunnelSocketContext.socket.end();
+
+    this.tunnelSocketContext.socket.removeAllListeners();
+    this.tunnelSocketContext.socket.destroy();
+
     for (const [_, serviceSocket] of this.tunnelSocketContext
       .destinationSockets) {
       serviceSocket.destroy();
     }
+    this.tunnelSocketContext.destinationSockets.clear();
+    this.tunnelSocketContext.pendingData.clear();
+    this.tunnelSocketContext.receiveBuffer = Buffer.alloc(0);
+    this.tunnelSocketContext = null;
+
+    this.events.emit("tunnel-client-end", undefined);
+    this.events.removeAllListeners();
   }
 
   get isDestroyed() {

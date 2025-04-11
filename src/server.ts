@@ -76,9 +76,12 @@ export class TunnelServer {
 
   stop() {
     this.server.close();
-    for (const socketContext of this.tunnels) {
-      socketContext.socket.destroy();
-      socketContext.tunnel?.close();
+    for (const tunnel of this.tunnels) {
+      tunnel.socket.destroy();
+      tunnel.tunnel?.close();
     }
+    this.tunnels.clear();
+    this.events.emit("main-server-end", undefined);
+    this.events.removeAllListeners();
   }
 }

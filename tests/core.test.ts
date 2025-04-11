@@ -41,12 +41,8 @@ describe("Basic Functionality (No TLS)", () => {
   });
 
   afterEach(async () => {
-    await stopTunnelClient(client).catch((err) => {
-      console.error("Error during client cleanup", err);
-    });
-    await stopTunnelServer(server).catch((err) => {
-      console.error("Error during server cleanup", err);
-    });
+    await stopTunnelClient(client);
+    await stopTunnelServer(server);
   });
 
   it("should establish connection, authenticate, and create tunnel", () => {
