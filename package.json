@@ -1,8 +1,13 @@
 {
   "name": "@web3-pi/tunnel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Easily create a secure TCP tunnel between your Web3 Pi and a remote server.",
-  "keywords": ["tunnel", "tcp", "proxy", "web3"],
+  "keywords": [
+    "tunnel",
+    "tcp",
+    "proxy",
+    "web3"
+  ],
   "homepage": "https://github.com/Web3-Pi/w3p-tunnel#readme",
   "bugs": {
     "url": "https://github.com/Web3-Pi/w3p-tunnel/issues"
@@ -14,7 +19,9 @@
   "license": "MIT",
   "author": "Web3 Pi",
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "dist/entry.js",
   "types": "dist/entry.d.ts",
   "scripts": {
