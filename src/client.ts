@@ -18,6 +18,7 @@ export class TunnelClient {
   #tunnelServerPort = 9000;
   #tunnelServerHost = "localhost";
   #tls: false | nodeTls.ConnectionOptions = false;
+  #reconnectAttempts = 0;
 
   constructor({
     localServicePort = 8081,
@@ -41,13 +42,18 @@ export class TunnelClient {
 
   reconnectToServer() {
     if (this.#isDestroyed) return;
-    const RECONNECT_TIMEOUT = 1000;
+    // Exponential backoff up to 30 seconds
+    const reconnectTimeout = Math.min(
+      1000 * 2 ** this.#reconnectAttempts,
+      30000,
+    );
+    this.#reconnectAttempts++;
     if (this.#reconnectTimeout) clearTimeout(this.#reconnectTimeout);
-    this.events.emit("tunnel-reconnect-queued", { timeout: RECONNECT_TIMEOUT });
+    this.events.emit("tunnel-reconnect-queued", { timeout: reconnectTimeout });
     this.#reconnectTimeout = setTimeout(() => {
       if (this.#isDestroyed) return;
       this.start();
-    }, RECONNECT_TIMEOUT);
+    }, reconnectTimeout);
   }
 
   start() {
